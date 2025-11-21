@@ -3,371 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Unlimited AI Interface</title>
-    
+    <title>Unlimited AI - Vercel</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #0f172a;
-            color: #e2e8f0;
-        }
-        
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #1e293b; 
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #475569; 
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #64748b; 
-        }
-
-        .message-animation {
-            animation: fadeIn 0.3s ease-in-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .typing-dot {
-            animation: typing 1.4s infinite ease-in-out both;
-        }
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #e2e8f0; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .typing-dot { animation: typing 1.4s infinite ease-in-out both; }
         .typing-dot:nth-child(1) { animation-delay: -0.32s; }
         .typing-dot:nth-child(2) { animation-delay: -0.16s; }
-        
-        @keyframes typing {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1); }
-        }
-
-        /* Glassmorphism utilities */
-        .glass {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
+        @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
     </style>
-
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#6366f1', // Indigo 500
-                        secondary: '#8b5cf6', // Violet 500
-                        dark: '#0f172a',
-                        darker: '#020617',
-                        surface: '#1e293b',
-                    }
-                }
-            }
-        }
-    </script>
+    <script>tailwind.config = { theme: { extend: { colors: { primary: '#6366f1', secondary: '#8b5cf6', darker: '#020617', surface: '#1e293b' } } } }</script>
 </head>
 <body>
     <div id="root"></div>
-
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // --- LOGIKA API DIPERBAIKI (MULTI PROXY) ---
         const unlimitedai = async (question) => {
             try {
-                if (!question) throw new Error('Pertanyaan tidak boleh kosong.');
+                if (!question) throw new Error('Pertanyaan kosong.');
                 
-                // --- PILIHAN PROXY (Ganti jika error 403) ---
-                
-                // OPSI 1: CodeTabs (Biasanya paling stabil untuk bypass 403)
-                //const PROXY = "https://api.codetabs.com/v1/proxy?quest=";
-                
-                // OPSI 2: ThingProxy (Alternatif jika Opsi 1 gagal)
-                //const PROXY = "https://thingproxy.freeboard.io/fetch/";
-                
-                // OPSI 3: CorsProxy.io (Sering kena 403, tapi kadang cepat)
-                const PROXY = "https://corsproxy.io/?";
+                // OTOMATIS MENGGUNAKAN BACKEND SENDIRI (Relative URL)
+                // Karena frontend & backend di domain sama (Vercel), kita cukup panggil /api
+                const BACKEND_URL = "/api"; 
 
-                const BASE_URL = "https://app.unlimitedai.chat/api";
-                
-                // Fungsi helper URL
-                // encodeURIComponent digunakan untuk mencegah URL rusak saat melewati proxy
-                const getUrl = (endpoint) => `${PROXY}${BASE_URL}${endpoint}`;
+                const { data: tokenData } = await axios.get(`${BACKEND_URL}/token`);
+                if (!tokenData || !tokenData.token) throw new Error("Gagal auth.");
 
-                // Header Palsu untuk mengelabui server
-                const headers = {
-                    'Origin': 'https://app.unlimitedai.chat',
-                    'Referer': 'https://app.unlimitedai.chat/',
-                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-                };
-
-                // Step 1: Get Token
-                console.log("Requesting token...");
-                const { data: tokenData } = await axios.get(getUrl('/token'), { headers });
-                
-                if (!tokenData || !tokenData.token) {
-                    throw new Error("Gagal mendapatkan token. Coba ganti Opsi Proxy di kodingan.");
-                }
-
-                // Step 2: Generate UUID
                 const chatUuid = crypto.randomUUID();
                 const msgUuid = crypto.randomUUID();
 
-                // Step 3: Post Chat
-                console.log("Sending chat...");
-                const { data } = await axios.post(getUrl('/chat'), {
+                const { data } = await axios.post(`${BACKEND_URL}/chat`, {
                     messages: [{
-                        id: msgUuid,
-                        createdAt: new Date().toISOString(),
-                        role: 'user',
-                        content: question,
-                        parts: [{
-                            type: 'text',
-                            text: question
-                        }]
+                        id: msgUuid, createdAt: new Date().toISOString(), role: 'user', content: question,
+                        parts: [{ type: 'text', text: question }]
                     }],
-                    id: chatUuid,
-                    selectedChatModel: 'chat-model-reasoning',
-                    selectedCharacter: null,
-                    selectedStory: null
-                }, {
-                    headers: {
-                        ...headers,
-                        'x-api-token': tokenData.token,
-                        'Content-Type': 'application/json'
-                    }
-                });
+                    id: chatUuid, selectedChatModel: 'chat-model-reasoning', selectedCharacter: null, selectedStory: null
+                }, { headers: { 'x-api-token': tokenData.token } });
                 
-                // Step 4: Parse Result
                 if (typeof data === 'string') {
                     const resultLine = data.split('\n').find(line => line.startsWith('0:'));
                     if (resultLine) {
                         let cleanText = resultLine.slice(2); 
-                        if (cleanText.startsWith('"') && cleanText.endsWith('"')) {
-                            cleanText = cleanText.slice(1, -1);
-                        }
-                        try {
-                            return JSON.parse(`"${cleanText}"`); 
-                        } catch (e) {
-                            return cleanText; 
-                        }
+                        if (cleanText.startsWith('"') && cleanText.endsWith('"')) cleanText = cleanText.slice(1, -1);
+                        try { return JSON.parse(`"${cleanText}"`); } catch (e) { return cleanText; }
                     }
                 } 
-                
                 return typeof data === 'object' ? JSON.stringify(data) : data;
-
             } catch (error) {
-                console.error("API Error:", error);
-                let msg = error.message;
-                if(error.response && error.response.status === 403) {
-                    msg = "Akses ditolak (403). Proxy saat ini diblokir server. Coba ganti variable PROXY di kodingan.";
-                }
-                throw new Error(msg);
+                throw new Error("Backend Error: " + (error.response?.data?.error || error.message));
             }
         };
 
-        // --- COMPONENTS ---
-
-        const Header = () => (
-            <div className="glass fixed top-0 w-full h-16 z-50 flex items-center justify-between px-6 shadow-lg">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-glow">
-                        <i className="fas fa-brain text-white text-sm"></i>
-                    </div>
-                    <h1 className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
-                        Unlimited AI
-                    </h1>
-                </div>
-                <div className="flex items-center gap-4">
-                    <span className="text-xs text-green-400 flex items-center gap-1.5 px-2 py-1 rounded-full bg-green-400/10 border border-green-400/20">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
-                        Proxy Active
-                    </span>
-                    <a href="#" className="text-gray-400 hover:text-white transition-colors"><i className="fab fa-github"></i></a>
-                </div>
-            </div>
-        );
-
-        const MessageBubble = ({ role, content, isError }) => {
-            const isUser = role === 'user';
-            
-            return (
-                <div className={`flex w-full mb-6 message-animation ${isUser ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`flex max-w-[85%] md:max-w-[70%] gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-                        {/* Avatar */}
-                        <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs ${isUser ? 'bg-surface border border-gray-600' : 'bg-gradient-to-br from-primary to-secondary shadow-lg'}`}>
-                            <i className={`fas ${isUser ? 'fa-user text-gray-300' : 'fa-robot text-white'}`}></i>
-                        </div>
-
-                        {/* Bubble */}
-                        <div className={`p-4 rounded-2xl text-sm leading-relaxed shadow-md ${
-                            isUser 
-                                ? 'bg-surface border border-gray-700 text-gray-100 rounded-tr-none' 
-                                : isError 
-                                    ? 'bg-red-900/20 border border-red-500/30 text-red-200 rounded-tl-none'
-                                    : 'bg-gradient-to-r from-slate-800 to-slate-900 border border-slate-700 text-gray-100 rounded-tl-none'
-                        }`}>
-                            <div className="whitespace-pre-wrap font-light">{content}</div>
-                            {isError && (
-                                <div className="mt-2 text-xs opacity-70 border-t border-red-500/30 pt-2">
-                                    <i className="fas fa-exclamation-triangle mr-1"></i>
-                                    Cek console (F12) untuk detail error.
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        const TypingIndicator = () => (
-            <div className="flex w-full mb-6 justify-start message-animation">
-                <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                        <i className="fas fa-robot text-white text-xs"></i>
-                    </div>
-                    <div className="bg-surface border border-gray-700 p-4 rounded-2xl rounded-tl-none flex items-center gap-1">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
-                    </div>
-                </div>
-            </div>
-        );
-
         const App = () => {
             const [input, setInput] = useState('');
-            const [messages, setMessages] = useState([
-                { role: 'assistant', content: 'Halo! Saya adalah Unlimited AI. Apa yang bisa saya bantu hari ini?' }
-            ]);
+            const [messages, setMessages] = useState([{ role: 'assistant', content: 'Halo! Sistem Backend Vercel Siap.' }]);
             const [isLoading, setIsLoading] = useState(false);
             const messagesEndRef = useRef(null);
-            const textareaRef = useRef(null);
 
-            const scrollToBottom = () => {
-                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-            };
-
-            useEffect(() => {
-                scrollToBottom();
-            }, [messages, isLoading]);
-
-            useEffect(() => {
-                if (textareaRef.current) {
-                    textareaRef.current.style.height = 'auto';
-                    textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
-                }
-            }, [input]);
+            useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
             const handleSend = async () => {
                 if (!input.trim() || isLoading) return;
-
-                const userQuestion = input;
-                setInput('');
-                if (textareaRef.current) textareaRef.current.style.height = 'auto';
-
-                setMessages(prev => [...prev, { role: 'user', content: userQuestion }]);
+                const q = input; setInput('');
+                setMessages(p => [...p, { role: 'user', content: q }]);
                 setIsLoading(true);
-
                 try {
-                    const result = await unlimitedai(userQuestion);
-                    setMessages(prev => [...prev, { role: 'assistant', content: result }]);
-                } catch (error) {
-                    setMessages(prev => [...prev, { 
-                        role: 'assistant', 
-                        content: `Error: ${error.message}`,
-                        isError: true 
-                    }]);
-                } finally {
-                    setIsLoading(false);
-                }
-            };
-
-            const handleKeyDown = (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend();
-                }
+                    const res = await unlimitedai(q);
+                    setMessages(p => [...p, { role: 'assistant', content: res }]);
+                } catch (e) {
+                    setMessages(p => [...p, { role: 'assistant', content: `Error: ${e.message}`, isError: true }]);
+                } finally { setIsLoading(false); }
             };
 
             return (
-                <div className="flex flex-col h-screen bg-darker overflow-hidden relative">
-                    {/* Background Effects */}
-                    <div className="absolute top-0 left-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
-                    <div className="absolute bottom-0 right-0 w-96 h-96 bg-secondary/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 pointer-events-none"></div>
-
-                    <Header />
-
-                    {/* Chat Area */}
-                    <div className="flex-1 overflow-y-auto pt-20 pb-32 px-4 md:px-0">
-                        <div className="max-w-3xl mx-auto w-full">
-                            {messages.map((msg, idx) => (
-                                <MessageBubble key={idx} {...msg} />
+                <div className="flex flex-col h-screen bg-darker text-gray-200">
+                    <div className="glass fixed top-0 w-full h-16 z-50 flex items-center px-6">
+                        <h1 className="font-bold text-xl text-white">Unlimited AI <span className="text-xs font-normal text-primary bg-primary/10 px-2 py-1 rounded ml-2">Vercel Edition</span></h1>
+                    </div>
+                    <div className="flex-1 overflow-y-auto pt-20 pb-24 px-4">
+                        <div className="max-w-3xl mx-auto">
+                            {messages.map((m, i) => (
+                                <div key={i} className={`flex mb-4 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`p-4 rounded-xl max-w-[85%] ${m.role === 'user' ? 'bg-surface border border-gray-700' : m.isError ? 'bg-red-900/30 border border-red-500' : 'bg-gradient-to-r from-slate-800 to-slate-900 border border-slate-700'}`}>
+                                        {m.content}
+                                    </div>
+                                </div>
                             ))}
-                            {isLoading && <TypingIndicator />}
+                            {isLoading && <div className="text-xs text-gray-500 animate-pulse">Sedang berpikir...</div>}
                             <div ref={messagesEndRef} />
                         </div>
                     </div>
-
-                    {/* Input Area */}
-                    <div className="fixed bottom-0 left-0 w-full px-4 pb-6 bg-gradient-to-t from-darker via-darker to-transparent pt-10">
-                        <div className="max-w-3xl mx-auto relative">
-                            <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-2xl blur opacity-20"></div>
-                            <div className="relative bg-surface border border-gray-700 rounded-2xl flex items-end p-2 shadow-2xl">
-                                <textarea
-                                    ref={textareaRef}
-                                    value={input}
-                                    onChange={(e) => setInput(e.target.value)}
-                                    onKeyDown={handleKeyDown}
-                                    placeholder="Tanya sesuatu..."
-                                    className="w-full bg-transparent text-gray-100 placeholder-gray-500 px-4 py-3 focus:outline-none resize-none max-h-32 text-sm"
-                                    rows={1}
-                                />
-                                <button 
-                                    onClick={handleSend}
-                                    disabled={!input.trim() || isLoading}
-                                    className={`mb-1 mr-1 p-2.5 rounded-xl transition-all duration-200 ${
-                                        input.trim() && !isLoading 
-                                        ? 'bg-gradient-to-br from-primary to-secondary text-white shadow-lg hover:shadow-primary/50' 
-                                        : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                                    }`}
-                                >
-                                    {isLoading ? (
-                                        <i className="fas fa-spinner fa-spin"></i>
-                                    ) : (
-                                        <i className="fas fa-paper-plane"></i>
-                                    )}
-                                </button>
-                            </div>
-                            <div className="text-center mt-2">
-                                <p className="text-[10px] text-gray-500">
-                                    Powered by Unlimited AI Model • Routing via Secure Proxy
-                                </p>
-                            </div>
+                    <div className="fixed bottom-0 w-full bg-darker p-4 border-t border-gray-800">
+                        <div className="max-w-3xl mx-auto flex gap-2">
+                            <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()} className="flex-1 bg-surface border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:border-primary" placeholder="Ketik pesan..." />
+                            <button onClick={handleSend} disabled={isLoading} className="bg-primary text-white p-3 rounded-xl"><i className="fas fa-paper-plane"></i></button>
                         </div>
                     </div>
                 </div>
             );
         };
-
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
