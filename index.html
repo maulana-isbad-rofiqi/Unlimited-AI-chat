@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unlimited AI Interface</title>
+    
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Axios -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b; 
+        }
+
+        .message-animation {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .typing-dot {
+            animation: typing 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        /* Glassmorphism utilities */
+        .glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6366f1', // Indigo 500
+                        secondary: '#8b5cf6', // Violet 500
+                        dark: '#0f172a',
+                        darker: '#020617',
+                        surface: '#1e293b',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- CORE LOGIC ADAPTED FROM USER CODE ---
+        const unlimitedai = async (question) => {
+            try {
+                if (!question) throw new Error('Question is required.');
+                
+                // Note: Browser cannot set 'Referer' or 'User-Agent' explicitly in headers due to security.
+                // We rely on the browser's default behavior, but keep the logic structure.
+                const inst = axios.create({
+                    baseURL: 'https://app.unlimitedai.chat/api',
+                    // headers: { ... } // Headers like User-Agent are controlled by the browser
+                });
+                
+                // Step 1: Get Token
+                const { data: tokenData } = await inst.get('/token');
+                
+                // Step 2: Generate UUID (using native browser API instead of 'uuid' library)
+                const chatUuid = crypto.randomUUID();
+                const msgUuid = crypto.randomUUID();
+
+                // Step 3: Post Chat
+                const { data } = await inst.post('/chat', {
+                    messages: [{
+                        id: msgUuid,
+                        createdAt: new Date().toISOString(),
+                        role: 'user',
+                        content: question,
+                        parts: [{
+                            type: 'text',
+                            text: question
+                        }]
+                    }],
+                    id: chatUuid,
+                    selectedChatModel: 'chat-model-reasoning',
+                    selectedCharacter: null,
+                    selectedStory: null
+                }, {
+                    headers: {
+                        'x-api-token': tokenData.token
+                    }
+                });
+                
+                // Step 4: Parse Result (as per original code logic)
+                // The original code expects a specific string format starting with "0:"
+                // We wrap this safely in case the API response format changes or is JSON
+                if (typeof data === 'string') {
+                    const result = data.split('\n').find(line => line.startsWith('0:'));
+                    if (result) {
+                        // Removing "0:" prefix and string quotes if present (slice(3, -1))
+                        // However, JSON.parse might be safer if it's a JSON string, but sticking to logic:
+                        let cleanText = result.slice(3);
+                        if (cleanText.endsWith('"')) cleanText = cleanText.slice(0, -1);
+                        if (cleanText.startsWith('"')) cleanText = cleanText.slice(1);
+                        return JSON.parse(`"${cleanText}"`); // Handle escaped characters
+                    }
+                } 
+                
+                // Fallback if format is standard JSON
+                return JSON.stringify(data);
+
+            } catch (error) {
+                console.error("API Error:", error);
+                if (error.response) {
+                     // Handle CORS or Server Errors specifically
+                     if (error.response.status === 403 || error.response.status === 401) {
+                         throw new Error("Access denied by server (CORS/Auth). This API may not support browser-based calls directly.");
+                     }
+                }
+                throw error;
+            }
+        };
+
+        // --- COMPONENTS ---
+
+        const Header = () => (
+            <div className="glass fixed top-0 w-full h-16 z-50 flex items-center justify-between px-6 shadow-lg">
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-glow">
+                        <i className="fas fa-brain text-white text-sm"></i>
+                    </div>
+                    <h1 className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+                        Unlimited AI
+                    </h1>
+                </div>
+                <div className="flex items-center gap-4">
+                    <span className="text-xs text-green-400 flex items-center gap-1.5 px-2 py-1 rounded-full bg-green-400/10 border border-green-400/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+                        Online
+                    </span>
+                    <a href="#" className="text-gray-400 hover:text-white transition-colors"><i className="fab fa-github"></i></a>
+                </div>
+            </div>
+        );
+
+        const MessageBubble = ({ role, content, isError }) => {
+            const isUser = role === 'user';
+            
+            return (
+                <div className={`flex w-full mb-6 message-animation ${isUser ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`flex max-w-[85%] md:max-w-[70%] gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+                        {/* Avatar */}
+                        <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs ${isUser ? 'bg-surface border border-gray-600' : 'bg-gradient-to-br from-primary to-secondary shadow-lg'}`}>
+                            <i className={`fas ${isUser ? 'fa-user text-gray-300' : 'fa-robot text-white'}`}></i>
+                        </div>
+
+                        {/* Bubble */}
+                        <div className={`p-4 rounded-2xl text-sm leading-relaxed shadow-md ${
+                            isUser 
+                                ? 'bg-surface border border-gray-700 text-gray-100 rounded-tr-none' 
+                                : isError 
+                                    ? 'bg-red-900/20 border border-red-500/30 text-red-200 rounded-tl-none'
+                                    : 'bg-gradient-to-r from-slate-800 to-slate-900 border border-slate-700 text-gray-100 rounded-tl-none'
+                        }`}>
+                            <div className="whitespace-pre-wrap font-light">{content}</div>
+                            {isError && (
+                                <div className="mt-2 text-xs opacity-70 border-t border-red-500/30 pt-2">
+                                    <i className="fas fa-exclamation-triangle mr-1"></i>
+                                    Possible CORS or API restriction issue.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const TypingIndicator = () => (
+            <div className="flex w-full mb-6 justify-start message-animation">
+                <div className="flex gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                        <i className="fas fa-robot text-white text-xs"></i>
+                    </div>
+                    <div className="bg-surface border border-gray-700 p-4 rounded-2xl rounded-tl-none flex items-center gap-1">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const App = () => {
+            const [input, setInput] = useState('');
+            const [messages, setMessages] = useState([
+                { role: 'assistant', content: 'Halo! Saya adalah Unlimited AI. Apa yang bisa saya bantu hari ini?' }
+            ]);
+            const [isLoading, setIsLoading] = useState(false);
+            const messagesEndRef = useRef(null);
+            const textareaRef = useRef(null);
+
+            const scrollToBottom = () => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            };
+
+            useEffect(() => {
+                scrollToBottom();
+            }, [messages, isLoading]);
+
+            // Auto-resize textarea
+            useEffect(() => {
+                if (textareaRef.current) {
+                    textareaRef.current.style.height = 'auto';
+                    textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+                }
+            }, [input]);
+
+            const handleSend = async () => {
+                if (!input.trim() || isLoading) return;
+
+                const userQuestion = input;
+                setInput('');
+                if (textareaRef.current) textareaRef.current.style.height = 'auto';
+
+                // Add user message
+                setMessages(prev => [...prev, { role: 'user', content: userQuestion }]);
+                setIsLoading(true);
+
+                try {
+                    // Call the adapted API function
+                    const result = await unlimitedai(userQuestion);
+                    
+                    // Add bot response
+                    setMessages(prev => [...prev, { role: 'assistant', content: result }]);
+                } catch (error) {
+                    // Add error message
+                    setMessages(prev => [...prev, { 
+                        role: 'assistant', 
+                        content: `Error: ${error.message}`,
+                        isError: true 
+                    }]);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            const handleKeyDown = (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                }
+            };
+
+            return (
+                <div className="flex flex-col h-screen bg-darker overflow-hidden relative">
+                    {/* Background Effects */}
+                    <div className="absolute top-0 left-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+                    <div className="absolute bottom-0 right-0 w-96 h-96 bg-secondary/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 pointer-events-none"></div>
+
+                    <Header />
+
+                    {/* Chat Area */}
+                    <div className="flex-1 overflow-y-auto pt-20 pb-32 px-4 md:px-0">
+                        <div className="max-w-3xl mx-auto w-full">
+                            {messages.map((msg, idx) => (
+                                <MessageBubble key={idx} {...msg} />
+                            ))}
+                            {isLoading && <TypingIndicator />}
+                            <div ref={messagesEndRef} />
+                        </div>
+                    </div>
+
+                    {/* Input Area */}
+                    <div className="fixed bottom-0 left-0 w-full px-4 pb-6 bg-gradient-to-t from-darker via-darker to-transparent pt-10">
+                        <div className="max-w-3xl mx-auto relative">
+                            <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-2xl blur opacity-20"></div>
+                            <div className="relative bg-surface border border-gray-700 rounded-2xl flex items-end p-2 shadow-2xl">
+                                <textarea
+                                    ref={textareaRef}
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    placeholder="Tanya sesuatu..."
+                                    className="w-full bg-transparent text-gray-100 placeholder-gray-500 px-4 py-3 focus:outline-none resize-none max-h-32 text-sm"
+                                    rows={1}
+                                />
+                                <button 
+                                    onClick={handleSend}
+                                    disabled={!input.trim() || isLoading}
+                                    className={`mb-1 mr-1 p-2.5 rounded-xl transition-all duration-200 ${
+                                        input.trim() && !isLoading 
+                                        ? 'bg-gradient-to-br from-primary to-secondary text-white shadow-lg hover:shadow-primary/50' 
+                                        : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                                    }`}
+                                >
+                                    {isLoading ? (
+                                        <i className="fas fa-spinner fa-spin"></i>
+                                    ) : (
+                                        <i className="fas fa-paper-plane"></i>
+                                    )}
+                                </button>
+                            </div>
+                            <div className="text-center mt-2">
+                                <p className="text-[10px] text-gray-500">
+                                    Powered by Unlimited AI Model • CORS restrictions may apply in browser.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
