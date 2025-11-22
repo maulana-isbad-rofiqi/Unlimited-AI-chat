@@ -27,6 +27,17 @@
             --brand: #a8c7fa;
         }
         
+        :root.light { 
+            --bg-base: #ffffff; 
+            --bg-sidebar: #f1f3f5;
+            --bg-surface: #ffffff; 
+            --bg-chip: #f1f3f5;
+            --bg-input: #f1f3f5;
+            --text-primary: #202124;
+            --text-secondary: #5f6368;
+            --brand: #4285f4;
+        }
+
         body { font-family: 'Google Sans', sans-serif; background-color: var(--bg-base); color: var(--text-primary); overflow: hidden; }
         
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -87,7 +98,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect, useRef, memo } = React;
 
         // --- CONFIGURATION ---
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz1i4BKzWcyBmv008V2SqqOYwwtLMfGvcmgEi2qR7vnMsTMQUC--bOqn1k6IcDSUZ8L/exec"; 
@@ -97,28 +108,15 @@
         // --- SEARCH ENGINE ---
         const searchWeb = async (query) => {
             try {
-                const PROXY = "https://api.codetabs.com/v1/proxy?quest=";
-                const TARGET = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`;
-                const { data } = await axios.get(PROXY + TARGET);
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(data, "text/html");
-                let results = [];
-                const rows = doc.querySelectorAll('tr');
-                let count = 0;
-                rows.forEach(row => {
-                    if (count >= 4) return;
-                    const linkTag = row.querySelector('.result-link');
-                    const snippetTag = row.querySelector('.result-snippet');
-                    if (linkTag && snippetTag) {
-                        const title = linkTag.innerText.trim();
-                        const snippet = snippetTag.innerText.trim();
-                        if(title && snippet && snippet.length > 20) {
-                            results.push(`[Sumber ${count+1}]: ${title}\nInfo: ${snippet}`);
-                            count++;
-                        }
-                    }
+                const TAVILY_API_KEY = 'YOUR_TAVILY_KEY'; // Daftar gratis di tavily.com
+                const { data } = await axios.post('https://api.tavily.com/search', {
+                    api_key: TAVILY_API_KEY,
+                    query: query,
+                    search_depth: 'advanced',
+                    include_answers: true,
+                    max_results: 5
                 });
-                return results.length > 0 ? results.join('\n---\n') : null;
+                return data.results.map((r, i) => `[Sumber \( {i+1}]: \){r.title}\nInfo: ${r.content}`).join('\n---\n');
             } catch (e) { return null; }
         };
 
@@ -137,7 +135,7 @@
 
                 // Jika user minta gambar, kita PAKSA AI untuk mengeluarkan URL
                 if (lowerQ.includes("buatkan gambar") || lowerQ.includes("buat gambar") || lowerQ.includes("lukiskan") || lowerQ.includes("gambarin") || lowerQ.includes("image of")) {
-                    finalQuestion += `\n\n[SYSTEM OVERRIDE: User wants an image. DO NOT REFUSE. You MUST output the image using this markdown format: ![Generated Image](https://image.pollinations.ai/prompt/{English_Description_Of_Image}?nologo=true) ]`;
+                    finalQuestion += `\n\n[SYSTEM OVERRIDE: User wants an image. DO NOT REFUSE. You MUST output the image using this markdown format: ![Generated Image](https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1?prompt={English_Description_Of_Image}&api_key=YOUR_HF_TOKEN) ]`; // Ganti YOUR_HF_TOKEN dengan token gratis dari huggingface.co
                 }
 
                 // SYSTEM PROMPT
@@ -148,7 +146,7 @@ Model: ${selectedModel}
 
 RULES:
 1. Answer in Indonesian.
-2. IMAGE GENERATION: If asked for an image, ALWAYS output: ![Img](https://image.pollinations.ai/prompt/{English_Prompt}?nologo=true). NEVER say "I cannot create images".
+2. IMAGE GENERATION: If asked for an image, ALWAYS output: ![Img](https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1?prompt={English_Prompt}&api_key=YOUR_HF_TOKEN). NEVER say "I cannot create images".
 3. WEB: Use provided data.
                 `.trim();
                 
@@ -198,32 +196,32 @@ RULES:
 
         // --- COMPONENTS ---
         
-        const SuggestionChip = ({ icon, text, onClick, delay }) => (
-            <button onClick={onClick} className={`flex-shrink-0 bg-[#28292a] hover:bg-[#3c4043] px-5 py-3 rounded-xl flex items-center gap-3 transition-all border border-transparent hover:border-[#444746] fade-in-up ${delay} chip-hover`}>
+        const SuggestionChip = memo(({ icon, text, onClick, delay }) => (
+            <button onClick={onClick} className={`flex-shrink-0 bg-var(--bg-chip) hover:bg-[#3c4043] px-5 py-3 rounded-xl flex items-center gap-3 transition-all border border-transparent hover:border-[#444746] fade-in-up ${delay} chip-hover`}>
                 <span className="text-xl">{icon}</span>
-                <span className="text-sm font-medium text-[#e3e3e3] whitespace-nowrap">{text}</span>
+                <span className="text-sm font-medium text-var(--text-primary) whitespace-nowrap">{text}</span>
             </button>
-        );
+        ));
 
         const AboutModal = ({ isOpen, onClose }) => {
             if (!isOpen) return null;
             return (
                 <div className="fixed inset-0 z-[99] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md fade-in" onClick={onClose}>
-                    <div className="w-full max-w-md bg-[#1e1f20] rounded-3xl p-0 shadow-2xl border border-[#444746] scale-in overflow-hidden" onClick={e => e.stopPropagation()}>
+                    <div className="w-full max-w-md bg-var(--bg-surface) rounded-3xl p-0 shadow-2xl border border-[#444746] scale-in overflow-hidden" onClick={e => e.stopPropagation()}>
                         <div className="h-32 bg-gradient-to-br from-blue-600 via-purple-600 to-red-500 relative flex items-center justify-center">
-                            <div className="w-20 h-20 bg-[#1e1f20] rounded-full flex items-center justify-center border-4 border-[#1e1f20] shadow-xl z-10 absolute -bottom-10">
+                            <div className="w-20 h-20 bg-var(--bg-surface) rounded-full flex items-center justify-center border-4 border-var(--bg-surface) shadow-xl z-10 absolute -bottom-10">
                                 <i className="fas fa-atom text-3xl text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400"></i>
                             </div>
                             <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 bg-black/30 rounded-full text-white flex items-center justify-center hover:bg-black/50 transition-colors"><i className="fas fa-times"></i></button>
                         </div>
                         <div className="pt-12 pb-8 px-6 text-center">
-                            <h2 className="text-2xl font-bold text-white tracking-tight">Kebis AI</h2>
+                            <h2 className="text-2xl font-bold text-var(--text-primary) tracking-tight">Kebis AI</h2>
                             <div className="flex justify-center gap-2 mt-2 mb-6">
-                                <span className="px-3 py-1 rounded-full bg-[#28292a] border border-[#444746] text-[10px] text-[#a8c7fa] font-mono">v3.0 ULTIMATE</span>
+                                <span className="px-3 py-1 rounded-full bg-var(--bg-chip) border border-[#444746] text-[10px] text-var(--brand) font-mono">v3.0 ULTIMATE</span>
                             </div>
-                            <p className="text-sm text-gray-300 mb-6">Sistem kecerdasan multimodal.</p>
+                            <p className="text-sm text-var(--text-secondary) mb-6">Sistem kecerdasan multimodal.</p>
                             <div className="border-t border-[#444746] pt-4">
-                                <p className="text-[10px] text-gray-500 uppercase tracking-widest">Architected by <span className="text-white font-bold">Itsbad</span></p>
+                                <p className="text-[10px] text-var(--text-secondary) uppercase tracking-widest">Architected by <span className="text-var(--text-primary) font-bold">Itsbad</span></p>
                             </div>
                         </div>
                     </div>
@@ -240,14 +238,14 @@ RULES:
             ];
             return (
                 <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm fade-in" onClick={onClose}>
-                    <div className="w-full max-w-sm bg-[#1e1f20] rounded-2xl p-6 shadow-2xl border border-[#444746] scale-in" onClick={e => e.stopPropagation()}>
-                        <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2"><i className="fas fa-layer-group text-[#a8c7fa]"></i> Pilih Model AI</h3>
+                    <div className="w-full max-w-sm bg-var(--bg-surface) rounded-2xl p-6 shadow-2xl border border-[#444746] scale-in" onClick={e => e.stopPropagation()}>
+                        <h3 className="text-lg font-medium text-var(--text-primary) mb-4 flex items-center gap-2"><i className="fas fa-layer-group text-var(--brand)"></i> Pilih Model AI</h3>
                         <div className="space-y-2">
                             {models.map(m => (
-                                <button key={m.id} onClick={() => { onSelect(m.id); onClose(); }} className={`w-full text-left p-4 rounded-xl border transition-all flex items-center gap-4 ${currentModel === m.id ? 'bg-[#004a77] border-[#a8c7fa] text-[#c2e7ff]' : 'bg-[#28292a] border-transparent text-gray-300 hover:bg-[#3c4043]'}`}>
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${currentModel === m.id ? 'bg-[#a8c7fa] text-black' : 'bg-black/30'}`}><i className={`fas ${m.icon}`}></i></div>
+                                <button key={m.id} onClick={() => { onSelect(m.id); onClose(); }} className={`w-full text-left p-4 rounded-xl border transition-all flex items-center gap-4 ${currentModel === m.id ? 'bg-[#004a77] border-var(--brand) text-var(--brand)' : 'bg-var(--bg-chip) border-transparent text-var(--text-secondary) hover:bg-[#3c4043]'}`}>
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center \( {currentModel === m.id ? 'bg-var(--brand) text-black' : 'bg-black/30'}`}><i className={`fas \){m.icon}`}></i></div>
                                     <div><div className="font-bold text-sm">{m.name}</div><div className="text-xs opacity-70">{m.desc}</div></div>
-                                    {currentModel === m.id && <i className="fas fa-check-circle text-[#a8c7fa] ml-auto"></i>}
+                                    {currentModel === m.id && <i className="fas fa-check-circle text-var(--brand) ml-auto"></i>}
                                 </button>
                             ))}
                         </div>
@@ -256,25 +254,29 @@ RULES:
             );
         };
 
-        const Sidebar = ({ isOpen, onClose, onNewChat, history, activeSession, onSelectSession, onDeleteHistory, onOpenSettings, onOpenAbout }) => {
+        const Sidebar = ({ isOpen, onClose, onNewChat, history, activeSession, onSelectSession, onDeleteHistory, onOpenSettings, onOpenAbout, theme, setTheme, searchTerm, setSearchTerm }) => {
             const [menuOpenId, setMenuOpenId] = useState(null); 
+            const filteredHistory = history.filter(session => session.title.toLowerCase().includes(searchTerm.toLowerCase()));
             return (
                 <>
                     {isOpen && <div onClick={onClose} className="fixed inset-0 bg-black/50 z-[60] fade-in md:hidden"></div>}
-                    <div className={`fixed inset-y-0 left-0 w-72 bg-geminiSurface z-[70] transform transition-transform duration-300 ease-in-out flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'} border-r border-[#444746]`}>
+                    <div className={`fixed inset-y-0 left-0 w-72 bg-var(--bg-sidebar) z-[70] transform transition-transform duration-300 ease-in-out flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'} border-r border-[#444746]`}>
                         <div className="p-4">
-                            <button onClick={onClose} className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-gray-400 mb-4"><i className="fas fa-bars"></i></button>
-                            <button onClick={() => { onNewChat(); onClose(); }} className="w-full bg-geminiInput hover:bg-white/10 text-[#a8c7fa] rounded-full py-3 px-4 flex items-center gap-3 transition-colors"><i className="fas fa-plus text-sm"></i><span className="text-sm font-medium">Percakapan baru</span></button>
+                            <button onClick={onClose} className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-var(--text-secondary) mb-4"><i className="fas fa-bars"></i></button>
+                            <button onClick={() => { onNewChat(); onClose(); }} className="w-full bg-var(--bg-input) hover:bg-white/10 text-var(--brand) rounded-full py-3 px-4 flex items-center gap-3 transition-colors"><i className="fas fa-plus text-sm"></i><span className="text-sm font-medium">Percakapan baru</span></button>
+                        </div>
+                        <div className="px-4 mb-4">
+                            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Cari riwayat" className="w-full bg-var(--bg-input) rounded-full px-4 py-2 text-var(--text-primary) focus:outline-none border border-transparent focus:border-var(--brand)" />
                         </div>
                         <div className="flex-1 overflow-y-auto px-2 no-scrollbar" onClick={() => setMenuOpenId(null)}>
-                            <p className="px-4 text-xs font-medium text-gray-400 mb-2 mt-2">Baru-baru ini</p>
-                            {history.length === 0 ? <div className="px-4 text-xs text-gray-500">Belum ada riwayat</div> : 
-                                history.map((session) => (
+                            <p className="px-4 text-xs font-medium text-var(--text-secondary) mb-2 mt-2">Baru-baru ini</p>
+                            {filteredHistory.length === 0 ? <div className="px-4 text-xs text-var(--text-secondary)">Belum ada riwayat</div> : 
+                                filteredHistory.map((session) => (
                                     <div key={session.id} className="relative group">
-                                        <button onClick={() => { onSelectSession(session.id); onClose(); }} className={`w-full text-left px-4 py-2.5 rounded-full text-sm flex items-center gap-3 mb-1 truncate transition-colors pr-8 ${activeSession === session.id ? 'bg-[#004a77] text-[#c2e7ff]' : 'text-[#e3e3e3] hover:bg-white/5'}`}>
+                                        <button onClick={() => { onSelectSession(session.id); onClose(); }} className={`w-full text-left px-4 py-2.5 rounded-full text-sm flex items-center gap-3 mb-1 truncate transition-colors pr-8 ${activeSession === session.id ? 'bg-[#004a77] text-var(--brand)' : 'text-var(--text-primary) hover:bg-white/5'}`}>
                                             <i className="far fa-comment-alt text-xs opacity-70"></i><span className="truncate flex-1">{session.title}</span>
                                         </button>
-                                        <button onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === session.id ? null : session.id); }} className="absolute right-2 top-2 w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-gray-700 opacity-0 group-hover:opacity-100 transition-opacity"><i className="fas fa-ellipsis-v text-xs"></i></button>
+                                        <button onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === session.id ? null : session.id); }} className="absolute right-2 top-2 w-6 h-6 flex items-center justify-center rounded-full text-var(--text-secondary) hover:text-var(--text-primary) hover:bg-gray-700 opacity-0 group-hover:opacity-100 transition-opacity"><i className="fas fa-ellipsis-v text-xs"></i></button>
                                         {menuOpenId === session.id && (
                                             <div className="absolute right-0 top-8 dropdown-menu w-32 z-50 fade-in">
                                                 <button onClick={(e) => { e.stopPropagation(); onDeleteHistory(session.id); setMenuOpenId(null); }} className="w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-white/10 rounded flex items-center gap-2"><i className="fas fa-trash-alt"></i> Hapus</button>
@@ -285,8 +287,9 @@ RULES:
                             }
                         </div>
                         <div className="p-4 border-t border-[#444746]">
-                            <button onClick={onOpenSettings} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-[#e3e3e3] hover:bg-white/5 rounded-lg transition-colors mb-1"><i className="fas fa-gem text-[#a8c7fa]"></i> <span>Model AI</span></button>
-                            <button onClick={onOpenAbout} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-[#e3e3e3] hover:bg-white/5 rounded-lg transition-colors"><i className="fas fa-info-circle text-gray-400"></i> <span>Tentang Kebis</span></button>
+                            <button onClick={onOpenSettings} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-var(--text-primary) hover:bg-white/5 rounded-lg transition-colors mb-1"><i className="fas fa-gem text-var(--brand)"></i> <span>Model AI</span></button>
+                            <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-var(--text-primary) hover:bg-white/5 rounded-lg transition-colors mb-1"><i className="fas fa-moon"></i> <span>Toggle Tema</span></button>
+                            <button onClick={onOpenAbout} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-var(--text-primary) hover:bg-white/5 rounded-lg transition-colors"><i className="fas fa-info-circle text-var(--text-secondary)"></i> <span>Tentang Kebis</span></button>
                         </div>
                     </div>
                 </>
@@ -311,14 +314,14 @@ RULES:
             if (!isOpen) return null;
             return (
                 <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm fade-in">
-                    <div className="w-full max-w-sm bg-geminiSurface rounded-3xl p-8 shadow-2xl border border-[#444746] fade-in-up">
-                        <div className="text-center mb-8"><h2 className="text-2xl font-medium text-white">Selamat Datang</h2><p className="text-sm text-gray-400 mt-2">Verifikasi untuk akses Kebis AI.</p></div>
+                    <div className="w-full max-w-sm bg-var(--bg-surface) rounded-3xl p-8 shadow-2xl border border-[#444746] fade-in-up">
+                        <div className="text-center mb-8"><h2 className="text-2xl font-medium text-var(--text-primary)">Selamat Datang</h2><p className="text-sm text-var(--text-secondary) mt-2">Verifikasi untuk akses Kebis AI.</p></div>
                         <div className="space-y-4">
-                            <div><label className="text-xs text-gray-400 ml-3 mb-1 block">Nama Panggilan</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Contoh: Alex" className="w-full bg-geminiBase border border-[#444746] rounded-xl px-4 py-3 text-white focus:border-[#a8c7fa] focus:outline-none" /></div>
-                            <div><label className="text-xs text-gray-400 ml-3 mb-1 block">Kode Akses</label><input type="text" value={code} onChange={(e) => setCode(e.target.value.trim())} placeholder="KEY-XXXX" className="w-full bg-geminiBase border border-[#444746] rounded-xl px-4 py-3 text-white font-mono uppercase focus:border-[#a8c7fa] focus:outline-none" /></div>
+                            <div><label className="text-xs text-var(--text-secondary) ml-3 mb-1 block">Nama Panggilan</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Contoh: Alex" className="w-full bg-var(--bg-base) border border-[#444746] rounded-xl px-4 py-3 text-var(--text-primary) focus:border-var(--brand) focus:outline-none" /></div>
+                            <div><label className="text-xs text-var(--text-secondary) ml-3 mb-1 block">Kode Akses</label><input type="text" value={code} onChange={(e) => setCode(e.target.value.trim())} placeholder="KEY-XXXX" className="w-full bg-var(--bg-base) border border-[#444746] rounded-xl px-4 py-3 text-var(--text-primary) font-mono uppercase focus:border-var(--brand) focus:outline-none" /></div>
                             {error && <p className="text-red-400 text-xs text-center">{error}</p>}
-                            <button onClick={handleSubmit} disabled={loading} className="w-full bg-[#e3e3e3] hover:bg-white text-black font-medium py-3 rounded-xl transition-all mt-2">{loading ? "Memeriksa..." : "Lanjutkan"}</button>
-                            <a href={`https://t.me/${TELEGRAM_BOT_USERNAME}?start=web`} target="_blank" className="block text-center text-sm text-[#a8c7fa] mt-4">Dapatkan Kode Gratis</a>
+                            <button onClick={handleSubmit} disabled={loading} className="w-full bg-var(--text-primary) hover:bg-white text-black font-medium py-3 rounded-xl transition-all mt-2">{loading ? "Memeriksa..." : "Lanjutkan"}</button>
+                            <a href={`https://t.me/${TELEGRAM_BOT_USERNAME}?start=web`} target="_blank" className="block text-center text-sm text-var(--brand) mt-4">Dapatkan Kode Gratis</a>
                         </div>
                     </div>
                 </div>
@@ -338,10 +341,11 @@ RULES:
             const [sidebarOpen, setSidebarOpen] = useState(false);
             const [webSearchEnabled, setWebSearchEnabled] = useState(false);
             const [selectedImage, setSelectedImage] = useState(null);
-            
             const [currentModel, setCurrentModel] = useState('gpt-4o');
             const [showModelModal, setShowModelModal] = useState(false);
             const [showAboutModal, setShowAboutModal] = useState(false);
+            const [theme, setTheme] = useState('dark');
+            const [searchTerm, setSearchTerm] = useState('');
 
             const messagesEndRef = useRef(null);
             const fileInputRef = useRef(null);
@@ -356,6 +360,10 @@ RULES:
                 setChatCount(savedCount);
                 setChatHistoryList(savedHistory);
             }, []);
+
+            useEffect(() => {
+                document.documentElement.className = theme;
+            }, [theme]);
 
             useEffect(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), [messages, isLoading]);
 
@@ -380,19 +388,30 @@ RULES:
 
             const handleImageSelect = (e) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => setSelectedImage(reader.result); reader.readAsDataURL(file); } };
 
-            const handleSend = async (textOverride) => {
+            const startVoiceInput = () => {
+                const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+                recognition.lang = 'id-ID';
+                recognition.onresult = (event) => setInput(event.results[0][0].transcript);
+                recognition.onerror = () => alert('Gagal mendeteksi suara.');
+                recognition.start();
+            };
+
+            const handleSend = async (textOverride, retry = false) => {
                 const q = textOverride || input;
                 if ((!q.trim() && !selectedImage) || isLoading) return;
                 if (!isLoggedIn) { if (chatCount >= MAX_FREE_CHATS) { setShowLogin(true); return; } const newCount = chatCount + 1; setChatCount(newCount); localStorage.setItem('unlimited_count', newCount.toString()); }
-                if (messages.length === 0) saveToHistory(q || "Analisis Gambar");
+                if (messages.length === 0 && !retry) saveToHistory(q || "Analisis Gambar");
                 setInput('');
                 const userContent = selectedImage ? (<div><img src={selectedImage} className="max-w-full h-48 rounded-xl mb-2 object-cover border border-[#444746]" /><p>{q}</p></div>) : q;
-                setMessages(p => [...p, { role: 'user', content: userContent, isComponent: !!selectedImage }]);
+                if (!retry) setMessages(p => [...p, { role: 'user', content: userContent, isComponent: !!selectedImage }]);
                 setIsLoading(true);
                 try {
                     const response = await unlimitedai(q, sessionId, messages, webSearchEnabled, selectedImage, userName, currentModel);
                     setSelectedImage(null); setMessages(p => [...p, { role: 'assistant', content: response }]);
-                } catch (e) { setMessages(p => [...p, { role: 'assistant', content: `Error: ${e.message}`, isError: true }]); } finally { setIsLoading(false); }
+                } catch (e) { 
+                    setMessages(p => [...p, { role: 'assistant', content: `Error: ${e.message}. Coba lagi?`, isError: true }]); 
+                    setMessages(p => [...p, { role: 'system', content: <button onClick={() => handleSend(q, true)} className="bg-var(--brand) text-white px-4 py-2 rounded">Retry</button> }]);
+                } finally { setIsLoading(false); }
             };
 
             const renderMessageContent = (content) => {
@@ -404,13 +423,13 @@ RULES:
             };
 
             return (
-                <div className="flex h-screen bg-geminiBase relative overflow-hidden">
-                    <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} onNewChat={handleNewChat} history={chatHistoryList} activeSession={sessionId} onSelectSession={(id) => { setSessionId(id); setMessages([]); }} onDeleteHistory={handleDeleteHistory} onOpenSettings={() => setShowModelModal(true)} onOpenAbout={() => setShowAboutModal(true)} />
+                <div className={`flex h-screen bg-var(--bg-base) text-var(--text-primary) relative overflow-hidden ${theme}`}>
+                    <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} onNewChat={handleNewChat} history={chatHistoryList} activeSession={sessionId} onSelectSession={(id) => { setSessionId(id); setMessages([]); }} onDeleteHistory={handleDeleteHistory} onOpenSettings={() => setShowModelModal(true)} onOpenAbout={() => setShowAboutModal(true)} theme={theme} setTheme={setTheme} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
                     <ModelSelectorModal isOpen={showModelModal} onClose={() => setShowModelModal(false)} currentModel={currentModel} onSelect={setCurrentModel} />
                     <AboutModal isOpen={showAboutModal} onClose={() => setShowAboutModal(false)} />
                     <div className="flex-1 flex flex-col h-full relative w-full">
-                        <div className="h-16 flex items-center justify-between px-4 z-40 bg-geminiBase/90 backdrop-blur-sm">
-                            <div className="flex items-center gap-3"><button onClick={() => setSidebarOpen(true)} className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-[#e3e3e3] transition-colors"><i className="fas fa-bars"></i></button><span className="text-lg font-medium text-[#c4c7c5] flex items-center gap-2">Kebis AI <span className="text-xs bg-[#28292a] px-2 py-0.5 rounded text-[#a8c7fa]">{currentModel === 'gpt-4o' ? 'Ultra' : currentModel === 'claude-3-5-sonnet' ? 'Logic' : 'Fast'}</span></span></div>
+                        <div className="h-16 flex items-center justify-between px-4 z-40 bg-var(--bg-base)/90 backdrop-blur-sm">
+                            <div className="flex items-center gap-3"><button onClick={() => setSidebarOpen(true)} className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-var(--text-primary) transition-colors"><i className="fas fa-bars"></i></button><span className="text-lg font-medium text-var(--text-secondary) flex items-center gap-2">Kebis AI <span className="text-xs bg-var(--bg-chip) px-2 py-0.5 rounded text-var(--brand)">{currentModel === 'gpt-4o' ? 'Ultra' : currentModel === 'claude-3-5-sonnet' ? 'Logic' : 'Fast'}</span></span></div>
                             <button onClick={() => isLoggedIn ? (confirm('Keluar?') && (localStorage.removeItem('unlimited_login'), localStorage.removeItem('kebis_username'), setIsLoggedIn(false), setUserName('Pengguna'))) : setShowLogin(true)}><div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 text-white flex items-center justify-center font-bold text-sm uppercase shadow-lg">{isLoggedIn ? userName.charAt(0) : <i className="fas fa-user"></i>}</div></button>
                         </div>
                         <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} onLogin={handleLoginSuccess} />
@@ -420,7 +439,7 @@ RULES:
                                     <div className="flex flex-col justify-center flex-1 pb-32">
                                         <div className="mb-12 fade-in-up">
                                             <h1 className="text-5xl md:text-6xl font-medium mb-3 tracking-tight"><span className="gemini-gradient">Halo, {userName}</span></h1>
-                                            <h2 className="text-3xl md:text-4xl text-[#5f6368] font-medium">Sebaiknya kita mulai dari mana?</h2>
+                                            <h2 className="text-3xl md:text-4xl text-var(--text-secondary) font-medium">Sebaiknya kita mulai dari mana?</h2>
                                         </div>
                                         <div className="flex gap-3 overflow-x-auto w-full pb-4 no-scrollbar">
                                             <SuggestionChip icon="🍌" text="Buat gambar" onClick={() => handleSend("Buatkan gambar realistis pisang memakai kacamata hitam di pantai")} delay="delay-100" />
@@ -434,26 +453,27 @@ RULES:
                                         {messages.map((m, i) => (
                                             <div key={i} className={`flex w-full gap-4 ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                                                 {m.role !== 'user' && <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mt-1 fade-in"><img src="https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d4735304ff6292a690345.svg" className="w-full h-full" /></div>}
-                                                <div className={`max-w-[85%] text-[16px] leading-relaxed fade-in-up ${m.role === 'user' ? 'bg-[#282a2c] px-5 py-3 rounded-3xl rounded-tr-sm text-[#e3e3e3]' : 'text-[#e3e3e3] pt-1'}`}>{m.isComponent ? m.content : renderMessageContent(m.content)}</div>
+                                                <div className={`max-w-[85%] text-[16px] leading-relaxed fade-in-up ${m.role === 'user' ? 'bg-var(--bg-input) px-5 py-3 rounded-3xl rounded-tr-sm text-var(--text-primary)' : 'text-var(--text-primary) pt-1'}`}>{m.isComponent ? m.content : renderMessageContent(m.content)}</div>
                                             </div>
                                         ))}
-                                        {isLoading && <div className="flex gap-4 fade-in"><div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 animate-pulse"><img src="https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d4735304ff6292a690345.svg" /></div><div className="text-[#e3e3e3] text-sm flex items-center pt-2">Sedang membuat...</div></div>}
+                                        {isLoading && <div className="flex gap-4 fade-in"><div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 animate-pulse"><img src="https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d4735304ff6292a690345.svg" /></div><div className="text-var(--text-primary) text-sm flex items-center pt-2">Sedang membuat...</div></div>}
                                         <div ref={messagesEndRef} />
                                     </div>
                                 )}
                             </div>
                         </div>
-                        <div className="fixed bottom-0 left-0 w-full bg-geminiBase/95 backdrop-blur-md pt-2 pb-6 px-4 z-30">
+                        <div className="fixed bottom-0 left-0 w-full bg-var(--bg-base)/95 backdrop-blur-md pt-2 pb-6 px-4 z-30">
                             <div className="max-w-3xl mx-auto relative">
-                                {selectedImage && <div className="absolute bottom-full left-4 mb-2 bg-geminiSurface p-2 rounded-xl border border-[#444746] flex items-center gap-2 shadow-lg fade-in-up"><img src={selectedImage} className="w-12 h-12 rounded-lg object-cover" /><button onClick={() => setSelectedImage(null)} className="w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center"><i className="fas fa-times text-xs"></i></button></div>}
-                                <div className={`flex items-center bg-geminiInput rounded-full px-4 py-2 transition-all border border-transparent focus-within:border-[#444746] ${isLoading ? 'opacity-50' : ''}`}>
+                                {selectedImage && <div className="absolute bottom-full left-4 mb-2 bg-var(--bg-surface) p-2 rounded-xl border border-[#444746] flex items-center gap-2 shadow-lg fade-in-up"><img src={selectedImage} className="w-12 h-12 rounded-lg object-cover" /><button onClick={() => setSelectedImage(null)} className="w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center"><i className="fas fa-times text-xs"></i></button></div>}
+                                <div className={`flex items-center bg-var(--bg-input) rounded-full px-4 py-2 transition-all border border-transparent focus-within:border-[#444746] ${isLoading ? 'opacity-50' : ''}`}>
                                     <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
-                                    <button onClick={() => fileInputRef.current.click()} className={`w-10 h-10 rounded-full flex items-center justify-center text-[#c4c7c5] hover:bg-white/10 hover:text-white transition-colors ${selectedImage ? 'text-[#a8c7fa]' : ''}`} title="Upload Gambar"><i className="far fa-image text-lg"></i></button>
-                                    <button onClick={() => setWebSearchEnabled(!webSearchEnabled)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${webSearchEnabled ? 'text-[#a8c7fa] bg-[#a8c7fa]/10' : 'text-[#c4c7c5] hover:bg-white/10 hover:text-white'}`} title="Akses Internet"><i className="fas fa-globe text-lg"></i></button>
-                                    <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Masukkan perintah di sini" className="flex-1 bg-transparent text-[#e3e3e3] placeholder-[#c4c7c5] px-3 py-3 focus:outline-none resize-none max-h-[120px]" rows={1} style={{minHeight: '48px'}} />
-                                    {input.trim() || selectedImage ? <button onClick={() => handleSend()} className="w-10 h-10 rounded-full flex items-center justify-center text-[#e3e3e3] hover:bg-white/10 transition-colors fade-in"><i className="fas fa-paper-plane"></i></button> : <div className="w-10 h-10 rounded-full flex items-center justify-center text-[#c4c7c5]"><i className="fas fa-microphone"></i></div>}
+                                    <button onClick={() => fileInputRef.current.click()} className={`w-10 h-10 rounded-full flex items-center justify-center text-var(--text-secondary) hover:bg-white/10 hover:text-var(--text-primary) transition-colors ${selectedImage ? 'text-var(--brand)' : ''}`} title="Upload Gambar"><i className="far fa-image text-lg"></i></button>
+                                    <button onClick={() => setWebSearchEnabled(!webSearchEnabled)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${webSearchEnabled ? 'text-var(--brand) bg-var(--brand)/10' : 'text-var(--text-secondary) hover:bg-white/10 hover:text-var(--text-primary)'}`} title="Akses Internet"><i className="fas fa-globe text-lg"></i></button>
+                                    <button onClick={startVoiceInput} className="w-10 h-10 rounded-full flex items-center justify-center text-var(--text-secondary) hover:bg-white/10 hover:text-var(--text-primary) transition-colors" title="Input Suara"><i className="fas fa-microphone text-lg"></i></button>
+                                    <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Masukkan perintah di sini" className="flex-1 bg-transparent text-var(--text-primary) placeholder-var(--text-secondary) px-3 py-3 focus:outline-none resize-none max-h-[120px]" rows={1} style={{minHeight: '48px'}} />
+                                    {input.trim() || selectedImage ? <button onClick={() => handleSend()} className="w-10 h-10 rounded-full flex items-center justify-center text-var(--text-primary) hover:bg-white/10 transition-colors fade-in"><i className="fas fa-paper-plane"></i></button> : <div className="w-10 h-10 rounded-full flex items-center justify-center text-var(--text-secondary)"><i className="fas fa-microphone"></i></div>}
                                 </div>
-                                <div className="text-center mt-3"><p className="text-[11px] text-[#c4c7c5]">Kebis AI dapat menampilkan info yang tidak akurat, termasuk tentang orang.</p></div>
+                                <div className="text-center mt-3"><p className="text-[11px] text-var(--text-secondary)">Kebis AI dapat menampilkan info yang tidak akurat, termasuk tentang orang.</p></div>
                             </div>
                         </div>
                     </div>
