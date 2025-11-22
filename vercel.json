@@ -2,7 +2,7 @@
   "framework": null,
   "functions": {
     "api/**/*.js": {
-      "runtime": "nodejs20.x"
+      "maxDuration": 30
     }
   },
   "rewrites": [
@@ -14,10 +14,5 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
-  ],
-  "env": {
-    "OPENAI_API_KEY": "@openai_api_key",
-    "ANTHROPIC_API_KEY": "@anthropic_api_key",
-    "API_TOKEN": "@api_token"
-  }
+  ]
 }
