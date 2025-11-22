@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kebis AI - Neural Interface</title>
+    <title>Kebis AI</title>
     
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
@@ -12,51 +12,52 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 
     <style>
-        /* KEBIS Theme (Dark Cyan/Blue Aesthetic) */
-        :root { --bg-dark: #040608; --surface: #0d1116; --brand: #06b6d4; /* Cyan-500 */ --accent: #3b82f6; }
-        body { font-family: 'Outfit', sans-serif; background-color: var(--bg-dark); color: #e4e4e7; overflow: hidden; }
+        /* GEMINI DARK THEME REPLICA */
+        :root { 
+            --bg-base: #131314; 
+            --bg-surface: #1e1f20; 
+            --bg-input: #282a2c;
+            --text-primary: #e3e3e3;
+            --text-secondary: #c4c7c5;
+            --brand: #a8c7fa; /* Google Blue-ish */
+            --accent: #06b6d4; 
+        }
         
-        /* Hide Scrollbar */
+        body { font-family: 'Google Sans', 'Inter', sans-serif; background-color: var(--bg-base); color: var(--text-primary); overflow: hidden; }
+        
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* Animation */
-        .fade-up { animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(20px); }
-        @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         
-        /* Typing Indicator */
+        .slide-in { animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+
         .typing-dot { animation: typing 1.4s infinite ease-in-out both; }
         .typing-dot:nth-child(1) { animation-delay: -0.32s; }
         .typing-dot:nth-child(2) { animation-delay: -0.16s; }
         @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
 
-        /* Glass Effects */
-        .glass { background: rgba(13, 17, 22, 0.8); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
-        .glass-card { 
-            background: linear-gradient(145deg, rgba(6, 182, 212, 0.05) 0%, rgba(13, 17, 22, 0.6) 100%); 
-            border: 1px solid rgba(255,255,255,0.05); 
-            backdrop-filter: blur(10px); 
-        }
-        .input-container { 
-            background: rgba(20, 25, 30, 0.7); 
-            backdrop-filter: blur(30px); 
-            border: 1px solid rgba(255, 255, 255, 0.08); 
-            box-shadow: 0 -10px 40px 0 rgba(0, 0, 0, 0.6); 
-        }
-
-        /* Markdown Images */
-        .msg-content img { max-width: 100%; border-radius: 12px; margin-top: 10px; border: 1px solid rgba(6, 182, 212, 0.3); }
+        /* Markdown Styling mimic */
+        .msg-content img { border-radius: 12px; margin-top: 8px; max-width: 100%; border: 1px solid #444746; }
+        .msg-content b { font-weight: 600; color: #fff; }
     </style>
 
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    colors: { brand: '#06b6d4', brandGlow: '#22d3ee', dark: '#040608', surface: '#0d1116', border: '#1f2937' },
-                    animation: { 'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite' }
+                    colors: { 
+                        geminiBase: '#131314', 
+                        geminiSurface: '#1e1f20',
+                        geminiInput: '#282a2c',
+                        geminiBlue: '#a8c7fa',
+                        brand: '#06b6d4'
+                    }
                 }
             }
         }
@@ -101,7 +102,7 @@
             } catch (e) { return null; }
         };
 
-        // --- BRAIN LOGIC ---
+        // --- API LOGIC ---
         const unlimitedai = async (currentQuestion, sessionId, chatHistory, useWebSearch, imageBase64) => {
             try {
                 if (!currentQuestion && !imageBase64) throw new Error('Input kosong.');
@@ -110,33 +111,28 @@
                 if (!tokenData || !tokenData.token) throw new Error("Koneksi server gagal.");
 
                 let systemContent = `
-SYSTEM: You are Kebis AI (Kecerdasan Biner Sistem).
-Identity: An advanced neural interface created by [SYSTEM_CREATOR]. You are helpful, precise, and cool.
-
-ABILITIES:
-1. TEXT: Reply in Indonesian, concise & smart. Use Markdown.
-2. IMAGE GENERATION: If user asks to create/draw image, output exactly: 
-   ![Generated Image](https://image.pollinations.ai/prompt/{English_Prompt})
-3. VISION: If image is attached, analyze it.
-4. WEB: Use internet data if provided.
+SYSTEM: You are Kebis AI.
+Identity: An advanced AI created by [SYSTEM_CREATOR].
+Traits: Helpful, Harmless, Honest.
+Capabilities:
+1. Answer in Indonesian.
+2. IMAGE: If user asks for image, output: ![Img](https://image.pollinations.ai/prompt/{English_Prompt})
+3. WEB: Use internet data if enabled.
                 `.trim();
                 
                 if (useWebSearch) {
                     const searchResults = await searchWeb(currentQuestion);
-                    if (searchResults) systemContent += `\n\n[DATA INTERNET]:\n${searchResults}`;
+                    if (searchResults) systemContent += `\n\n[WEB DATA]:\n${searchResults}`;
                 }
-
                 if (imageBase64) {
-                    systemContent += `\n\n[IMAGE ATTACHED]: Analyze the image content.`;
-                    currentQuestion += `\n\n[SYSTEM_NOTE: User uploaded an image. Analyze it.]`;
+                    systemContent += `\n\n[IMAGE]: User attached an image. Analyze it.`;
+                    currentQuestion += ` [Image Analysis Request]`;
                 }
 
                 const systemMessage = { id: crypto.randomUUID(), role: 'system', content: systemContent, parts: [{ type: 'text', text: systemContent }], createdAt: new Date().toISOString() };
-                
                 const recentHistory = chatHistory.slice(-6).filter(m => !m.isError && !m.isSystem).map(m => ({ 
                     id: crypto.randomUUID(), role: m.role, content: m.content, parts: [{ type: 'text', text: m.content }], createdAt: new Date().toISOString() 
                 }));
-
                 const userMessage = { id: crypto.randomUUID(), createdAt: new Date().toISOString(), role: 'user', content: currentQuestion, parts: [{ type: 'text', text: currentQuestion }] };
                 const fullPayload = [systemMessage, ...recentHistory, userMessage];
 
@@ -158,6 +154,56 @@ ABILITIES:
 
         // --- COMPONENTS ---
 
+        const Sidebar = ({ isOpen, onClose, onNewChat, history, activeSession, onSelectSession }) => {
+            return (
+                <>
+                    {/* Backdrop */}
+                    {isOpen && <div onClick={onClose} className="fixed inset-0 bg-black/50 z-[60] fade-in"></div>}
+                    
+                    {/* Drawer */}
+                    <div className={`fixed inset-y-0 left-0 w-72 bg-geminiSurface z-[70] transform transition-transform duration-300 ease-in-out flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                        <div className="p-4">
+                            <button onClick={onClose} className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-gray-400 mb-4">
+                                <i className="fas fa-bars"></i>
+                            </button>
+                            
+                            <button onClick={() => { onNewChat(); onClose(); }} className="w-full bg-geminiInput hover:bg-white/10 text-brand rounded-full py-3 px-4 flex items-center gap-3 transition-colors">
+                                <i className="fas fa-plus text-sm"></i>
+                                <span className="text-sm font-medium text-[#e3e3e3]">Percakapan baru</span>
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto px-2 no-scrollbar">
+                            <p className="px-4 text-xs font-medium text-gray-400 mb-2 mt-2">Baru-baru ini</p>
+                            {history.length === 0 ? (
+                                <div className="px-4 text-xs text-gray-500">Belum ada riwayat</div>
+                            ) : (
+                                history.map((session) => (
+                                    <button 
+                                        key={session.id}
+                                        onClick={() => { onSelectSession(session.id); onClose(); }}
+                                        className={`w-full text-left px-4 py-2.5 rounded-full text-sm flex items-center gap-3 mb-1 truncate transition-colors ${activeSession === session.id ? 'bg-[#004a77] text-[#c2e7ff]' : 'text-[#e3e3e3] hover:bg-white/5'}`}
+                                    >
+                                        <i className="far fa-comment-alt text-xs opacity-70"></i>
+                                        <span className="truncate">{session.title}</span>
+                                    </button>
+                                ))
+                            )}
+                        </div>
+
+                        <div className="p-4 border-t border-[#444746]">
+                            <button className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-white/5 hover:text-white flex items-center gap-3">
+                                <i className="fas fa-cog"></i> Setelan
+                            </button>
+                            <button className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-white/5 hover:text-white flex items-center gap-3">
+                                <i className="fas fa-question-circle"></i> Bantuan
+                            </button>
+                        </div>
+                    </div>
+                </>
+            );
+        };
+
         const LoginModal = ({ isOpen, onClose, onLogin }) => {
             const [code, setCode] = useState('');
             const [error, setError] = useState('');
@@ -171,97 +217,88 @@ ABILITIES:
             };
             if (!isOpen) return null;
             return (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
-                    <div className="w-full max-w-sm bg-surface border border-brand/20 rounded-2xl p-6 shadow-[0_0_30px_rgba(6,182,212,0.15)]">
+                <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                    <div className="w-full max-w-sm bg-geminiSurface rounded-3xl p-6 shadow-2xl border border-[#444746]">
                         <div className="text-center mb-6">
-                            <h2 className="text-xl font-bold text-white">Akses Neural</h2>
-                            <p className="text-sm text-zinc-400">Masukkan kunci protokol Kebis AI.</p>
+                            <i className="fas fa-fingerprint text-4xl text-brand mb-2"></i>
+                            <h2 className="text-xl font-bold text-white">Verifikasi</h2>
+                            <p className="text-sm text-gray-400">Akses fitur lengkap Kebis AI.</p>
                         </div>
-                        <div className="space-y-3">
-                            <input type="text" value={code} onChange={(e) => setCode(e.target.value.trim())} placeholder="KEY-XXXX" className="w-full bg-dark border border-border rounded-xl px-4 py-3 text-white text-center font-mono focus:border-brand focus:outline-none uppercase" />
+                        <div className="space-y-4">
+                            <input type="text" value={code} onChange={(e) => setCode(e.target.value.trim())} placeholder="Masukkan Kode" className="w-full bg-geminiBase border border-[#444746] rounded-xl px-4 py-3 text-white text-center focus:border-brand focus:outline-none" />
                             {error && <p className="text-red-400 text-xs text-center">{error}</p>}
-                            <button onClick={handleSubmit} disabled={loading} className="w-full bg-brand hover:bg-cyan-600 text-black font-bold py-3 rounded-xl transition-all disabled:opacity-50">{loading ? <i className="fas fa-spinner fa-spin"></i> : "AKTIFKAN"}</button>
-                            <a href={`https://t.me/${TELEGRAM_BOT_USERNAME}?start=web`} target="_blank" className="block text-center text-sm text-brand hover:text-white mt-4">Dapatkan Kunci Akses</a>
+                            <button onClick={handleSubmit} disabled={loading} className="w-full bg-brand hover:bg-cyan-600 text-black font-medium py-3 rounded-xl transition-all">{loading ? "Memeriksa..." : "Lanjutkan"}</button>
+                            <a href={`https://t.me/${TELEGRAM_BOT_USERNAME}?start=web`} target="_blank" className="block text-center text-sm text-brand mt-2">Dapatkan Kode</a>
                         </div>
                     </div>
                 </div>
             );
         };
 
-        // FIX: Dashboard Scrolling Issue solved with proper flex and padding
-        const Dashboard = ({ onSuggestionClick }) => (
-            <div className="flex flex-col items-center justify-center w-full min-h-full py-12 pb-32">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-b from-brand to-blue-600 flex items-center justify-center shadow-[0_0_60px_rgba(6,182,212,0.4)] mb-6 animate-pulse-slow relative">
-                    <div className="absolute inset-0 rounded-full border border-white/20 animate-ping opacity-20"></div>
-                    <i className="fas fa-dna text-5xl text-white"></i>
-                </div>
-                
-                <h2 className="text-4xl font-bold text-white mb-1 tracking-tighter text-center">KEBIS <span className="text-brand">AI</span></h2>
-                <p className="text-brandGlow text-center text-[10px] uppercase tracking-[0.3em] mb-8 opacity-80">Kecerdasan Biner Sistem</p>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-sm px-2">
-                    <button onClick={() => onSuggestionClick("Ciptakan gambar naga robotik realistik")} className="glass-card p-4 rounded-xl text-left hover:bg-brand/10 transition-all group flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-400"><i className="fas fa-magic"></i></div>
-                        <div>
-                            <h3 className="text-white font-bold text-sm">Visual Generator</h3>
-                            <p className="text-[10px] text-zinc-500">Buat gambar AI</p>
-                        </div>
-                    </button>
-                    <button onClick={() => onSuggestionClick("Cari info saham teknologi hari ini")} className="glass-card p-4 rounded-xl text-left hover:bg-brand/10 transition-all group flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400"><i className="fas fa-globe-americas"></i></div>
-                        <div>
-                            <h3 className="text-white font-bold text-sm">Web Neural</h3>
-                            <p className="text-[10px] text-zinc-500">Akses internet</p>
-                        </div>
-                    </button>
-                    <button onClick={() => onSuggestionClick("Analisis foto ini untuk saya...")} className="glass-card p-4 rounded-xl text-left hover:bg-brand/10 transition-all group flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center text-green-400"><i className="fas fa-eye"></i></div>
-                        <div>
-                            <h3 className="text-white font-bold text-sm">Vision Core</h3>
-                            <p className="text-[10px] text-zinc-500">Analisis Gambar</p>
-                        </div>
-                    </button>
-                    <button onClick={() => onSuggestionClick("Buatkan kode HTML Portfolio keren")} className="glass-card p-4 rounded-xl text-left hover:bg-brand/10 transition-all group flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center text-orange-400"><i className="fas fa-terminal"></i></div>
-                        <div>
-                            <h3 className="text-white font-bold text-sm">Code Master</h3>
-                            <p className="text-[10px] text-zinc-500">Programming</p>
-                        </div>
-                    </button>
-                </div>
-            </div>
-        );
-
         const App = () => {
             const [input, setInput] = useState('');
             const [messages, setMessages] = useState([]);
             const [isLoading, setIsLoading] = useState(false);
-            const [statusText, setStatusText] = useState('');
             const [isLoggedIn, setIsLoggedIn] = useState(false);
             const [showLogin, setShowLogin] = useState(false);
             const [chatCount, setChatCount] = useState(0);
-            const [sessionId] = useState(() => crypto.randomUUID());
+            
+            // Session Management
+            const [sessionId, setSessionId] = useState(crypto.randomUUID());
+            const [chatHistoryList, setChatHistoryList] = useState([]);
+            
+            // UI State
+            const [sidebarOpen, setSidebarOpen] = useState(false);
             const [webSearchEnabled, setWebSearchEnabled] = useState(false);
-            const [selectedImage, setSelectedImage] = useState(null); 
+            const [selectedImage, setSelectedImage] = useState(null);
             
             const messagesEndRef = useRef(null);
             const fileInputRef = useRef(null);
 
+            // Load Data
             useEffect(() => {
                 const savedLogin = localStorage.getItem('unlimited_login') === 'true';
                 const savedCount = parseInt(localStorage.getItem('unlimited_count') || '0');
+                const savedHistory = JSON.parse(localStorage.getItem('kebis_history') || '[]');
+                
                 setIsLoggedIn(savedLogin);
                 setChatCount(savedCount);
+                setChatHistoryList(savedHistory);
             }, []);
 
-            const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-            useEffect(() => scrollToBottom(), [messages, isLoading]);
+            // Scroll handling
+            useEffect(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), [messages, isLoading]);
+
+            const handleNewChat = () => {
+                setSessionId(crypto.randomUUID());
+                setMessages([]);
+                setInput('');
+                setSelectedImage(null);
+                setWebSearchEnabled(false);
+            };
+
+            const handleSelectSession = (id) => {
+                // In real app, fetch messages by ID. Here we just reset for UX simulation
+                // because we don't store full message bodies in localstorage for simplicity
+                handleNewChat();
+            };
+
+            const saveToHistory = (firstMessage) => {
+                const newHistory = [{
+                    id: sessionId,
+                    title: firstMessage.length > 25 ? firstMessage.substring(0, 25) + '...' : firstMessage,
+                    date: new Date().toISOString()
+                }, ...chatHistoryList.filter(h => h.id !== sessionId)];
+                
+                setChatHistoryList(newHistory);
+                localStorage.setItem('kebis_history', JSON.stringify(newHistory));
+            };
 
             const handleImageSelect = (e) => {
                 const file = e.target.files[0];
                 if (file) {
                     const reader = new FileReader();
-                    reader.onloadend = () => { setSelectedImage(reader.result); };
+                    reader.onloadend = () => setSelectedImage(reader.result);
                     reader.readAsDataURL(file);
                 }
             };
@@ -277,102 +314,159 @@ ABILITIES:
                     localStorage.setItem('unlimited_count', newCount.toString());
                 }
 
+                // First message in session? Save to history
+                if (messages.length === 0) saveToHistory(q || "Image Analysis");
+
                 setInput('');
                 
                 const userContent = selectedImage ? (
                     <div>
-                        <img src={selectedImage} className="max-w-full h-32 rounded-lg mb-2 object-cover border border-brand/50" />
+                        <img src={selectedImage} className="max-w-full h-48 rounded-xl mb-2 object-cover border border-[#444746]" />
                         <p>{q}</p>
                     </div>
                 ) : q;
 
                 setMessages(p => [...p, { role: 'user', content: userContent, isComponent: !!selectedImage }]);
                 setIsLoading(true);
-                
-                if (selectedImage) setStatusText("Menganalisis visual...");
-                else if (webSearchEnabled) setStatusText("Mengakses jaringan global...");
-                else setStatusText("Memproses data neural...");
 
                 try {
                     const response = await unlimitedai(q, sessionId, messages, webSearchEnabled, selectedImage);
                     setSelectedImage(null);
                     setMessages(p => [...p, { role: 'assistant', content: response }]);
                 } catch (e) {
-                    setMessages(p => [...p, { role: 'assistant', content: `System Error: ${e.message}`, isError: true }]);
+                    setMessages(p => [...p, { role: 'assistant', content: `Error: ${e.message}`, isError: true }]);
                 } finally {
-                    setIsLoading(false); setStatusText('');
+                    setIsLoading(false);
                 }
             };
 
             return (
-                <div className="flex flex-col h-[100dvh] relative bg-dark">
-                    {/* Fixed Background */}
-                    <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-brand/10 via-transparent to-transparent"></div>
+                <div className="flex h-screen bg-geminiBase relative">
+                    
+                    <Sidebar 
+                        isOpen={sidebarOpen} 
+                        onClose={() => setSidebarOpen(false)}
+                        onNewChat={handleNewChat}
+                        history={chatHistoryList}
+                        activeSession={sessionId}
+                        onSelectSession={handleSelectSession}
+                    />
 
-                    {/* HEADER */}
-                    <div className="glass fixed top-0 w-full h-14 z-50 flex items-center justify-between px-4 shadow-lg">
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded bg-brand flex items-center justify-center text-black font-bold shadow-[0_0_15px_rgba(6,182,212,0.5)]"><i className="fas fa-dna"></i></div>
-                            <div><h1 className="font-bold text-white tracking-tight text-lg leading-none">KEBIS</h1></div>
+                    <div className="flex-1 flex flex-col h-full relative">
+                        {/* TOP BAR */}
+                        <div className="h-16 flex items-center justify-between px-4 z-40 bg-geminiBase/90 backdrop-blur-sm">
+                            <div className="flex items-center gap-3">
+                                <button onClick={() => setSidebarOpen(true)} className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-gray-300 transition-colors">
+                                    <i className="fas fa-bars"></i>
+                                </button>
+                                <span className="text-lg font-medium text-[#c4c7c5] flex items-center gap-2">
+                                    Kebis AI <i className="fas fa-caret-down text-xs opacity-50"></i>
+                                </span>
+                            </div>
+                            <button onClick={() => isLoggedIn ? (confirm('Logout?') && (localStorage.removeItem('unlimited_login'), setIsLoggedIn(false))) : setShowLogin(true)}>
+                                <div className="w-8 h-8 rounded-full bg-brand text-black flex items-center justify-center font-bold text-sm">
+                                    {isLoggedIn ? "K" : <i className="fas fa-user"></i>}
+                                </div>
+                            </button>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <button onClick={() => {setMessages([]); setSelectedImage(null);}} className="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center text-zinc-400 hover:text-white"><i className="fas fa-trash-alt text-xs"></i></button>
-                            <button onClick={() => isLoggedIn ? (confirm('Putuskan koneksi?') && (localStorage.removeItem('unlimited_login'), setIsLoggedIn(false), setChatCount(0))) : setShowLogin(true)} className={`px-3 py-1 rounded-full text-[10px] font-bold border uppercase tracking-wider ${isLoggedIn ? 'bg-brand/20 border-brand text-brand' : 'bg-surface border-border text-zinc-400'}`}>{isLoggedIn ? "Linked" : "Connect"}</button>
-                        </div>
-                    </div>
 
-                    <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} onLogin={() => { setIsLoggedIn(true); localStorage.setItem('unlimited_login', 'true'); }} />
+                        <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} onLogin={() => { setIsLoggedIn(true); localStorage.setItem('unlimited_login', 'true'); }} />
 
-                    {/* MAIN AREA with Scroll Fix */}
-                    <div className="flex-1 overflow-y-auto no-scrollbar pt-14 pb-28 px-4">
-                        {messages.length === 0 ? (
-                            <Dashboard onSuggestionClick={(text) => handleSend(text)} />
-                        ) : (
-                            <div className="max-w-2xl mx-auto w-full space-y-6 pt-6">
-                                {messages.map((m, i) => (
-                                    <div key={i} className={`fade-up flex w-full ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        {m.role !== 'user' && <div className="w-8 h-8 rounded-full bg-surface border border-border flex-shrink-0 flex items-center justify-center mr-3 mt-1"><i className="fas fa-microchip text-brand text-xs"></i></div>}
-                                        <div className={`max-w-[90%] px-5 py-3.5 text-[15px] leading-relaxed shadow-md ${m.role === 'user' ? 'bg-brand text-black font-medium rounded-2xl rounded-tr-sm shadow-[0_0_20px_rgba(6,182,212,0.2)]' : m.isError ? 'bg-red-900/20 border border-red-500/30 text-red-200 rounded-2xl' : 'bg-surface border border-border text-zinc-200 rounded-2xl rounded-tl-sm'}`}>
-                                            {m.isComponent ? m.content : <div className="whitespace-pre-wrap msg-content" dangerouslySetInnerHTML={{__html: m.content.replace(/\n/g, '<br>').replace(/\!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" />').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')}}></div>}
+                        {/* CHAT CONTENT */}
+                        <div className="flex-1 overflow-y-auto no-scrollbar pt-4 pb-32 px-4">
+                            <div className="max-w-3xl mx-auto w-full">
+                                {messages.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center min-h-[60vh] fade-in">
+                                        <h1 className="text-4xl md:text-5xl font-medium text-transparent bg-clip-text bg-gradient-to-r from-[#4285f4] via-[#9b72cb] to-[#d96570] mb-2">Halo, Pengguna</h1>
+                                        <p className="text-2xl text-[#444746] font-medium mb-10">Apa yang bisa saya bantu hari ini?</p>
+                                        
+                                        <div className="flex gap-3 overflow-x-auto w-full max-w-2xl pb-2 no-scrollbar justify-center flex-wrap">
+                                            <button onClick={() => handleSend("Cari berita teknologi terbaru")} className="bg-geminiSurface hover:bg-white/5 p-4 rounded-2xl w-40 h-40 flex flex-col justify-between text-left transition-colors border border-transparent hover:border-[#444746]">
+                                                <p className="text-sm text-[#e3e3e3]">Cari berita teknologi terbaru</p>
+                                                <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center"><i className="fas fa-compass text-[#e3e3e3]"></i></div>
+                                            </button>
+                                            <button onClick={() => handleSend("Buatkan gambar pemandangan anime")} className="bg-geminiSurface hover:bg-white/5 p-4 rounded-2xl w-40 h-40 flex flex-col justify-between text-left transition-colors border border-transparent hover:border-[#444746]">
+                                                <p className="text-sm text-[#e3e3e3]">Buat gambar anime</p>
+                                                <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center"><i className="fas fa-pen-fancy text-[#e3e3e3]"></i></div>
+                                            </button>
+                                            <button onClick={() => handleSend("Jelaskan tentang Quantum Computing")} className="bg-geminiSurface hover:bg-white/5 p-4 rounded-2xl w-40 h-40 flex flex-col justify-between text-left transition-colors border border-transparent hover:border-[#444746]">
+                                                <p className="text-sm text-[#e3e3e3]">Jelaskan Quantum Computing</p>
+                                                <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center"><i className="fas fa-lightbulb text-[#e3e3e3]"></i></div>
+                                            </button>
                                         </div>
                                     </div>
-                                ))}
-                                {isLoading && <div className="fade-up flex items-center gap-3 ml-1">
-                                    <div className="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center"><i className={`fas ${selectedImage ? 'fa-eye' : webSearchEnabled ? 'fa-globe' : 'fa-bolt'} text-brand animate-pulse text-xs`}></i></div>
-                                    <div className="text-[10px] text-brand font-mono animate-pulse tracking-widest uppercase">{statusText}</div>
-                                </div>}
-                                <div ref={messagesEndRef} />
+                                ) : (
+                                    <div className="space-y-8 py-4">
+                                        {messages.map((m, i) => (
+                                            <div key={i} className={`flex w-full gap-4 ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                                                {m.role !== 'user' && (
+                                                    <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mt-1">
+                                                        <img src="https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d4735304ff6292a690345.svg" alt="AI" className="w-full h-full" />
+                                                    </div>
+                                                )}
+                                                <div className={`max-w-[85%] text-[15px] leading-relaxed ${m.role === 'user' ? 'bg-[#282a2c] px-5 py-3 rounded-3xl rounded-tr-sm text-[#e3e3e3]' : 'text-[#e3e3e3] pt-1'}`}>
+                                                    {m.isComponent ? m.content : <div className="whitespace-pre-wrap msg-content" dangerouslySetInnerHTML={{__html: m.content.replace(/\n/g, '<br>').replace(/\!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" />').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')}}></div>}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {isLoading && <div className="flex gap-4">
+                                            <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 animate-pulse"><img src="https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d4735304ff6292a690345.svg" /></div>
+                                            <div className="text-[#e3e3e3] text-sm flex items-center pt-2">Sedang berpikir...</div>
+                                        </div>}
+                                        <div ref={messagesEndRef} />
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
-
-                    {/* INPUT BAR */}
-                    <div className="fixed bottom-6 left-4 right-4 z-40">
-                        <div className="max-w-2xl mx-auto relative">
-                            {/* Image Preview */}
-                            {selectedImage && (
-                                <div className="absolute bottom-full mb-2 left-0 bg-surface border border-border p-2 rounded-xl flex items-center gap-2 shadow-xl backdrop-blur-md">
-                                    <img src={selectedImage} className="w-12 h-12 rounded-lg object-cover" />
-                                    <button onClick={() => setSelectedImage(null)} className="text-red-400 hover:text-red-300 px-2"><i className="fas fa-times"></i></button>
-                                </div>
-                            )}
-
-                            <div className="input-container rounded-2xl p-1.5 flex items-end gap-2 transition-all">
-                                <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
-                                
-                                <button onClick={() => fileInputRef.current.click()} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all mb-0.5 ml-0.5 ${selectedImage ? 'bg-brand text-black' : 'bg-transparent text-zinc-500 hover:text-zinc-300'}`}>
-                                    <i className="fas fa-paperclip"></i>
-                                </button>
-
-                                <button onClick={() => setWebSearchEnabled(!webSearchEnabled)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all mb-0.5 ${webSearchEnabled ? 'bg-brand text-black shadow-[0_0_15px_rgba(6,182,212,0.4)]' : 'bg-transparent text-zinc-500 hover:text-zinc-300'}`}>
-                                    <i className="fas fa-globe"></i>
-                                </button>
-
-                                <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder={webSearchEnabled ? "Pencarian global..." : selectedImage ? "Analisis gambar..." : "Perintah Kebis..."} className="w-full bg-transparent text-white placeholder-zinc-600 px-3 py-2.5 focus:outline-none resize-none max-h-[120px] text-[15px]" rows={1} style={{minHeight: '44px'}} />
-                                <button onClick={() => handleSend()} disabled={(!input.trim() && !selectedImage) || isLoading} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all mb-0.5 mr-0.5 ${input.trim() || selectedImage ? 'bg-brand text-black hover:scale-105 shadow-lg' : 'bg-zinc-800 text-zinc-600'}`}><i className="fas fa-arrow-up"></i></button>
-                            </div>
-                            <div className="text-center mt-3 select-none opacity-40"><p className="text-[9px] font-mono tracking-[0.2em] text-zinc-600 uppercase">SYSTEM BY <span className="text-zinc-400 font-bold">【﻿ 𝕀𝕥𝕤𝕓𝕒𝕕 】</span></p></div>
                         </div>
+
+                        {/* INPUT AREA */}
+                        <div className="fixed bottom-0 left-0 w-full bg-geminiBase pt-2 pb-6 px-4 z-30">
+                            <div className="max-w-3xl mx-auto relative">
+                                {/* Image Preview Bubble */}
+                                {selectedImage && (
+                                    <div className="absolute bottom-full left-4 mb-2 bg-geminiSurface p-2 rounded-xl border border-[#444746] flex items-center gap-2 shadow-lg">
+                                        <img src={selectedImage} className="w-12 h-12 rounded-lg object-cover" />
+                                        <button onClick={() => setSelectedImage(null)} className="w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center"><i className="fas fa-times text-xs"></i></button>
+                                    </div>
+                                )}
+
+                                <div className={`flex items-center bg-geminiInput rounded-full px-4 py-2 transition-all ${isLoading ? 'opacity-50' : ''}`}>
+                                    <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
+                                    
+                                    <button onClick={() => fileInputRef.current.click()} className={`w-10 h-10 rounded-full flex items-center justify-center text-[#c4c7c5] hover:bg-white/10 hover:text-white transition-colors ${selectedImage ? 'text-brand' : ''}`}>
+                                        <i className="far fa-image text-lg"></i>
+                                    </button>
+                                    
+                                    <button onClick={() => setWebSearchEnabled(!webSearchEnabled)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${webSearchEnabled ? 'text-brand bg-brand/10' : 'text-[#c4c7c5] hover:bg-white/10 hover:text-white'}`}>
+                                        <i className="fas fa-globe text-lg"></i>
+                                    </button>
+
+                                    <textarea 
+                                        value={input} 
+                                        onChange={e => setInput(e.target.value)} 
+                                        onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} 
+                                        placeholder="Masukkan perintah di sini" 
+                                        className="flex-1 bg-transparent text-[#e3e3e3] placeholder-[#c4c7c5] px-3 py-3 focus:outline-none resize-none max-h-[120px]" 
+                                        rows={1} 
+                                        style={{minHeight: '48px'}}
+                                    />
+
+                                    {input.trim() || selectedImage ? (
+                                        <button onClick={() => handleSend()} className="w-10 h-10 rounded-full flex items-center justify-center text-[#e3e3e3] hover:bg-white/10 transition-colors">
+                                            <i className="fas fa-paper-plane"></i>
+                                        </button>
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-[#c4c7c5]">
+                                            <i className="fas fa-microphone"></i>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="text-center mt-2">
+                                    <p className="text-[10px] text-[#c4c7c5]">Kebis AI dapat menampilkan info yang tidak akurat, termasuk tentang orang.</p>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             );
