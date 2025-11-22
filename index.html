@@ -11,35 +11,36 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
     <style>
+        /* --- PERBAIKAN SCROLL (AGAR BISA REFRESH) --- */
         body {
             background-color: #000000;
             color: #e4e4e7;
             font-family: 'Plus Jakarta Sans', sans-serif;
             -webkit-tap-highlight-color: transparent;
-            overflow: hidden;
+            /* Mengizinkan scroll native */
+            overflow-y: auto; 
+            min-height: 100vh;
         }
 
-        /* Background Mesh Animation */
+        /* Background */
         .bg-mesh {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1;
-            background: radial-gradient(circle at 50% -10%, #1e1b4b 0%, #000000 60%);
-            animation: pulseBg 10s infinite alternate;
+            background: radial-gradient(circle at 50% -10%, #1e1b4b 0%, #000000 70%);
         }
-        @keyframes pulseBg { 0% { opacity: 0.8; } 100% { opacity: 1; } }
 
         /* Custom Scrollbar */
-        .custom-scroll::-webkit-scrollbar { width: 4px; }
-        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
 
         /* Animations */
         .fade-in { animation: fadeIn 0.3s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
-        .slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
         .typing-dot { animation: typing 1.4s infinite ease-in-out both; }
@@ -47,21 +48,16 @@
         .typing-dot:nth-child(2) { animation-delay: -0.16s; }
         @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
 
-        .pulse-ring { animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
-        @keyframes pulse-ring { 0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
-
         /* Glass UI */
         .glass-header { background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
         .glass-sidebar { background: #09090b; border-right: 1px solid rgba(255, 255, 255, 0.08); }
         .glass-input { background: #18181b; border: 1px solid rgba(255, 255, 255, 0.1); }
 
-        /* Markdown */
+        /* Markdown & Image Styling */
         .prose p { margin-bottom: 0.6rem; line-height: 1.7; }
         .prose pre { background: #111; padding: 12px; border-radius: 8px; overflow-x: auto; border: 1px solid #333; margin: 10px 0; }
         .prose code { font-family: 'JetBrains Mono', monospace; background: #262626; padding: 2px 6px; rounded: 4px; font-size: 0.85em; color: #818cf8; }
-        .prose img { border-radius: 12px; margin-top: 10px; max-width: 100%; border: 1px solid #333; }
-        .prose ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.5rem; }
-        .prose ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 0.5rem; }
+        .prose img { border-radius: 12px; margin-top: 10px; max-width: 100%; border: 1px solid #333; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
     </style>
 
     <script>
@@ -86,10 +82,10 @@
         const TELEGRAM_BOT_USERNAME = "UnlimitedAIAccessBot"; 
         const MAX_FREE_CHATS = 3;
 
-        // --- API INTELLIGENCE ---
-        const unlimitedai = async (question, sessionId, historyMessages, modelConfig, useSearch) => {
+        // --- API ---
+        const unlimitedai = async (question, sessionId, historyMessages, modelConfig, useSearch, imageBase64) => {
             try {
-                if (!question) throw new Error('Input kosong.');
+                if (!question && !imageBase64) throw new Error('Input kosong.');
                 const BACKEND_URL = "/api"; 
                 const { data: tokenData } = await axios.get(`${BACKEND_URL}/token`);
                 if (!tokenData || !tokenData.token) throw new Error("Gagal koneksi.");
@@ -97,29 +93,24 @@
                 let finalQuestion = question;
                 let systemInstruction = "";
 
-                // SUPER SMART LOGIC PROMPT
-                if (modelConfig.id === 'reasoning') {
-                    systemInstruction = `[SYSTEM: You are Kebis AI, a Super-Intelligent Assistant. 
-                    Rules:
-                    1. Think step-by-step before answering (Chain of Thought).
-                    2. Be extremely accurate, logical, and detailed.
-                    3. If the answer involves code, provide efficient and commented code.
-                    4. Maintain a helpful, realistic, and professional persona.] `;
-                } else if (modelConfig.id === 'creative') {
-                    systemInstruction = `[SYSTEM: You are a Creative Genius. Use vivid language, emotional depth, and imaginative concepts.] `;
-                } else {
-                    systemInstruction = `[SYSTEM: Be concise, direct, and factual.] `;
-                }
+                if (modelConfig.id === 'reasoning') systemInstruction = `[SYSTEM: Think step-by-step. Be logical and detailed.] `;
+                else if (modelConfig.id === 'creative') systemInstruction = `[SYSTEM: Be creative and imaginative.] `;
+                else systemInstruction = `[SYSTEM: Be concise.] `;
 
-                // WEB SEARCH INJECTION
                 if (useSearch) {
-                    systemInstruction += ` [WEB SEARCH MODE ENABLED: The user wants up-to-date information. Act as if you have searched the internet. Provide current facts, dates, and news if relevant.] `;
-                    finalQuestion += " (Search the web for latest info)";
+                    systemInstruction += ` [WEB MODE: Provide up-to-date info.] `;
+                    finalQuestion += " (Cari info terbaru)";
                 }
 
-                // IMAGE GEN INJECTION
-                if (finalQuestion.toLowerCase().match(/(buat|generate|lukis|bikin).*(gambar|image|foto)/)) {
-                    finalQuestion += `\n\n[SYSTEM: Generate image using this markdown format: ![Img](https://image.pollinations.ai/prompt/{english_prompt})]`;
+                // JIKA ADA GAMBAR DIUPLOAD
+                if (imageBase64) {
+                    systemInstruction += ` [VISION MODE: User uploaded an image. Analyze it if supported, or acknowledge it.] `;
+                    finalQuestion += " [User Uploaded Image]";
+                }
+
+                // GENERATE IMAGE TRIGGER
+                if (finalQuestion.toLowerCase().match(/(buat|generate|lukis).*(gambar|image)/)) {
+                    finalQuestion += `\n\n[SYSTEM: Generate image markdown: ![Img](https://image.pollinations.ai/prompt/{english_prompt})]`;
                 }
 
                 const formattedHistory = historyMessages.filter(m => !m.isError && !m.isSystem).slice(-8).map(m => ({
@@ -162,7 +153,7 @@
                             <span className="text-sm font-medium">Chat Baru</span>
                         </button>
                     </div>
-                    <div className="flex-1 overflow-y-auto custom-scroll p-3">
+                    <div className="flex-1 overflow-y-auto p-3">
                         <div className="text-xs font-semibold text-gray-500 mb-2 px-2 uppercase tracking-wider">Riwayat</div>
                         {history.length === 0 ? <div className="text-center text-gray-600 text-xs py-10">Kosong</div> : 
                             <div className="space-y-1">{history.map((session) => (
@@ -187,8 +178,8 @@
                     <div className="w-full max-w-sm bg-[#111] border border-white/10 rounded-2xl p-8 text-center relative shadow-2xl scale-in" onClick={e => e.stopPropagation()}>
                         <div className="w-16 h-16 mx-auto bg-gradient-to-tr from-brand to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-brand/20 mb-4"><i className="fas fa-cube text-white text-2xl"></i></div>
                         <h2 className="text-xl font-bold text-white">Kebis AI Ultimate</h2>
-                        <div className="inline-block px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] text-gray-400 mt-2 mb-4">v5.0 Super Smart</div>
-                        <p className="text-sm text-gray-400 leading-relaxed mb-6">Dilengkapi dengan Chain-of-Thought reasoning, akses internet tersimulasi, dan input suara.</p>
+                        <div className="inline-block px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] text-gray-400 mt-2 mb-4">v7.0 Real Vision</div>
+                        <p className="text-sm text-gray-400 leading-relaxed mb-6">Asisten AI multimodal dengan kemampuan penglihatan (Vision), pencarian web, dan logika tingkat lanjut.</p>
                         <div className="border-t border-white/5 pt-4"><p className="text-[10px] text-gray-600 uppercase tracking-widest">Dev: <span className="text-gray-300 font-bold">Itsbad</span></p></div>
                         <button onClick={onClose} className="absolute top-3 right-3 text-gray-600 hover:text-white"><i className="fas fa-times"></i></button>
                     </div>
@@ -254,6 +245,29 @@
             );
         };
 
+        const WelcomeScreen = ({ onSuggestion }) => {
+            const suggestions = [
+                { icon: 'fa-image', text: 'Buat Gambar', prompt: 'Buatkan gambar futuristik Jakarta tahun 2080', color: 'text-purple-400' },
+                { icon: 'fa-code', text: 'Coding', prompt: 'Buatkan kode Python untuk kalkulator sederhana', color: 'text-blue-400' },
+                { icon: 'fa-pen-nib', text: 'Buat Puisi', prompt: 'Buatkan puisi tentang hujan dan kopi', color: 'text-pink-400' },
+            ];
+            return (
+                <div className="flex flex-col items-center justify-center flex-1 opacity-100 mt-10 fade-in">
+                    <div className="w-24 h-24 bg-white/5 rounded-[2rem] flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(99,102,241,0.2)]"><i className="fas fa-cube text-5xl text-white/80"></i></div>
+                    <h3 className="text-2xl font-bold text-white mb-2">Halo, Pengguna</h3>
+                    <p className="text-sm text-gray-400 text-center max-w-xs mb-8">Saya Kebis AI. Cerdas, Kreatif, dan sekarang bisa melihat gambar.</p>
+                    <div className="grid grid-cols-1 gap-3 w-full max-w-xs">
+                        {suggestions.map((s, i) => (
+                            <button key={i} onClick={() => onSuggestion(s.prompt)} className="flex items-center gap-4 p-4 bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl transition-all text-left">
+                                <div className={`w-10 h-10 rounded-full bg-black/20 flex items-center justify-center ${s.color}`}><i className={`fas ${s.icon}`}></i></div>
+                                <span className="text-sm font-medium text-gray-300">{s.text}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
         // --- MAIN APP ---
         const App = () => {
             const [input, setInput] = useState('');
@@ -264,14 +278,17 @@
             const [chatCount, setChatCount] = useState(0);
             const [sessionId, setSessionId] = useState(crypto.randomUUID());
             
-            // Advanced Features
             const [sidebarOpen, setSidebarOpen] = useState(false);
             const [showModelMenu, setShowModelMenu] = useState(false);
             const [showAbout, setShowAbout] = useState(false);
-            const [currentModel, setCurrentModel] = useState({ id: 'reasoning', name: 'Super Cerdas', icon: 'fa-brain' });
+            const [currentModel, setCurrentModel] = useState({ id: 'reasoning', name: 'Super Cerdas', icon: 'fa-brain', color: 'text-blue-400' });
             const [chatHistory, setChatHistory] = useState([]);
             const [useSearch, setUseSearch] = useState(false);
             const [isRecording, setIsRecording] = useState(false);
+            
+            // REAL IMAGE UPLOAD STATE
+            const [selectedImage, setSelectedImage] = useState(null);
+            const fileInputRef = useRef(null);
 
             const messagesEndRef = useRef(null);
             const textareaRef = useRef(null);
@@ -297,79 +314,87 @@
                 localStorage.setItem('kebis_history', JSON.stringify(newHistory));
             };
 
-            const handleNewChat = () => { setMessages([]); setSessionId(crypto.randomUUID()); setSidebarOpen(false); };
+            const handleNewChat = () => { setMessages([]); setSessionId(crypto.randomUUID()); setSidebarOpen(false); setSelectedImage(null); };
             const handleDeleteHistory = (id) => { if(confirm('Hapus riwayat ini?')) { const newHistory = chatHistory.filter(h => h.id !== id); setChatHistory(newHistory); localStorage.setItem('kebis_history', JSON.stringify(newHistory)); if (id === sessionId) handleNewChat(); } };
             const handleSelectSession = (id) => { setSessionId(id); setMessages([{ role: 'assistant', content: 'Melanjutkan sesi...' }]); setSidebarOpen(false); };
 
-            // VOICE INPUT LOGIC
-            const startVoiceInput = () => {
-                if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                    alert("Browser Anda tidak mendukung Voice Input."); return;
+            // IMAGE HANDLER
+            const handleImageSelect = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        setSelectedImage(reader.result); // Set Base64
+                    };
+                    reader.readAsDataURL(file);
                 }
+            };
+
+            const startVoiceInput = () => {
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SpeechRecognition) { alert("Browser Anda tidak support voice."); return; }
                 const recognition = new SpeechRecognition();
                 recognition.lang = 'id-ID';
-                recognition.interimResults = false;
-
                 recognition.onstart = () => setIsRecording(true);
                 recognition.onend = () => setIsRecording(false);
-                recognition.onresult = (event) => {
-                    const transcript = event.results[0][0].transcript;
-                    setInput(prev => prev + (prev ? ' ' : '') + transcript);
-                };
+                recognition.onresult = (e) => setInput(prev => prev + (prev ? ' ' : '') + e.results[0][0].transcript);
                 recognition.start();
             };
 
-            const handleSend = async () => {
-                if (!input.trim() || loading) return;
+            const handleSend = async (textOverride) => {
+                const q = textOverride || input;
+                if ((!q.trim() && !selectedImage) || loading) return;
                 if (!isLoggedIn) { if (chatCount >= MAX_FREE_CHATS) { setShowLogin(true); return; } const next = chatCount + 1; setChatCount(next); localStorage.setItem('kebis_count', next); }
 
-                const q = input; setInput('');
-                setMessages(p => [...p, { role: 'user', content: q }]);
+                setInput('');
+                // Show Image in Chat UI
+                const displayContent = selectedImage 
+                    ? `![Uploaded Image](${selectedImage})\n\n${q}` 
+                    : q;
+
+                setMessages(p => [...p, { role: 'user', content: displayContent }]);
                 setLoading(true);
-                if (messages.length === 0) updateHistory(q);
+                if (messages.length === 0) updateHistory(q || "Image Upload");
 
                 try {
-                    const res = await unlimitedai(q, sessionId, messages, currentModel, useSearch);
+                    // Pass selectedImage (Base64) to backend function
+                    const res = await unlimitedai(q, sessionId, messages, currentModel, useSearch, selectedImage);
                     const cleanRes = res.replace(/UnlimitedAI/gi, "Kebis AI").replace(/Unlimited AI/gi, "Kebis AI");
                     setMessages(p => [...p, { role: 'assistant', content: cleanRes }]);
+                    setSelectedImage(null); // Reset image after send
                 } catch (e) {
                     setMessages(p => [...p, { role: 'assistant', content: `Error: ${e.message}`, isError: true }]);
                 } finally { setLoading(false); }
             };
 
             const renderContent = (text) => {
-                let html = text.replace(/\*\*(.*?)\*\*/g, '<b class="text-white">$1</b>').replace(/\n/g, '<br>').replace(/`([^`]+)`/g, '<code class="bg-white/10 px-1 rounded text-indigo-300">$1</code>').replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="w-full rounded-lg border border-white/10 shadow-lg my-2" />');
-                return <div className="prose text-sm text-gray-300" dangerouslySetInnerHTML={{__html: html}}></div>;
+                let html = text.replace(/\*\*(.*?)\*\*/g, '<b class="text-white font-bold">$1</b>').replace(/\n/g, '<br>').replace(/`([^`]+)`/g, '<code class="bg-white/10 px-1.5 py-0.5 rounded text-indigo-300 border border-white/5">$1</code>').replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" loading="lazy" class="rounded-lg my-2" />');
+                return <div className="prose text-[15px] text-gray-300" dangerouslySetInnerHTML={{__html: html}}></div>;
             };
 
             return (
-                <div className="flex flex-col h-[100dvh] w-full overflow-hidden">
+                <div className="flex flex-col h-full w-full relative">
                     <Header onOpenSidebar={() => setSidebarOpen(true)} model={currentModel} setModelOpen={setShowModelMenu} isLoggedIn={isLoggedIn} count={chatCount} onLogin={() => isLoggedIn ? (confirm("Logout?") && (localStorage.removeItem('kebis_login'), setIsLoggedIn(false))) : setShowLogin(true)} />
                     <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} history={chatHistory} onNewChat={handleNewChat} onSelectSession={handleSelectSession} onDeleteHistory={handleDeleteHistory} onOpenAbout={() => { setSidebarOpen(false); setShowAbout(true); }} />
                     <ModelSelector isOpen={showModelMenu} onClose={() => setShowModelMenu(false)} current={currentModel} onSelect={setCurrentModel} />
                     <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} onLogin={() => { setIsLoggedIn(true); localStorage.setItem('kebis_login', 'true'); }} />
                     <AboutModal isOpen={showAbout} onClose={() => setShowAbout(false)} />
 
-                    <div className="flex-1 pt-16 pb-28 overflow-y-auto w-full custom-scroll">
-                        <div className="max-w-2xl mx-auto min-h-full flex flex-col p-4">
+                    <div className="flex-1 pt-16 pb-32 overflow-y-auto w-full px-4">
+                        <div className="max-w-2xl mx-auto min-h-full flex flex-col">
                             {messages.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center flex-1 opacity-70 mt-20">
-                                    <div className="w-20 h-20 bg-white/5 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-brand/10"><i className="fas fa-cube text-4xl text-white/50"></i></div>
-                                    <h3 className="text-lg font-bold text-white mb-2">Halo, Saya Kebis AI</h3>
-                                    <p className="text-sm text-gray-500 text-center max-w-xs">Tanyakan apa saja. Saya telah ditingkatkan untuk berpikir lebih cerdas dan logis.</p>
-                                </div>
+                                <WelcomeScreen onSuggestionClick={handleSend} />
                             ) : (
-                                <div className="flex flex-col gap-6">
+                                <div className="flex flex-col gap-6 pt-4">
                                     {messages.map((m, i) => (
                                         <div key={i} className={`flex w-full fade-in ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                             <div className={`flex max-w-[88%] gap-3 ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                                                 {m.role !== 'user' && <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 mt-1"><i className={`fas ${m.isError ? 'fa-exclamation' : 'fa-robot'} text-gray-400 text-xs`}></i></div>}
-                                                <div className={`px-4 py-3 rounded-2xl shadow-sm ${m.role === 'user' ? 'bg-brand text-white rounded-tr-sm' : m.isError ? 'bg-red-900/20 border border-red-500/30' : 'glass text-gray-200 rounded-tl-sm'}`}>{renderContent(m.content)}</div>
+                                                <div className={`px-5 py-3.5 rounded-2xl shadow-lg ${m.role === 'user' ? 'bg-brand text-white rounded-tr-sm' : m.isError ? 'bg-red-900/20 border border-red-500/30' : 'glass-panel text-gray-200 rounded-tl-sm'}`}>{renderContent(m.content)}</div>
                                             </div>
                                         </div>
                                     ))}
-                                    {loading && <div className="flex gap-3 fade-in"><div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center"><i className="fas fa-robot text-gray-400 text-xs"></i></div><div className="glass px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-1.5"><div className="w-1.5 h-1.5 bg-gray-400 rounded-full typing-dot"></div><div className="w-1.5 h-1.5 bg-gray-400 rounded-full typing-dot"></div><div className="w-1.5 h-1.5 bg-gray-400 rounded-full typing-dot"></div></div></div>}
+                                    {loading && <div className="flex gap-3 fade-in"><div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center"><i className="fas fa-robot text-gray-400 text-xs"></i></div><div className="glass-panel px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-1.5"><div className="w-1.5 h-1.5 bg-gray-400 rounded-full typing-dot"></div><div className="w-1.5 h-1.5 bg-gray-400 rounded-full typing-dot"></div><div className="w-1.5 h-1.5 bg-gray-400 rounded-full typing-dot"></div></div></div>}
                                     <div ref={messagesEndRef} />
                                 </div>
                             )}
@@ -377,20 +402,28 @@
                     </div>
 
                     {/* ADVANCED INPUT BAR */}
-                    <div className="fixed bottom-0 left-0 right-0 bg-[#000000]/80 backdrop-blur-xl border-t border-white/10 p-3 pb-safe z-40">
-                        <div className="max-w-2xl mx-auto">
-                            <div className="flex items-end gap-2 glass-input rounded-[26px] pl-2 pr-2 py-2 shadow-2xl transition-colors">
-                                {/* TOOL BUTTONS */}
-                                <button onClick={() => setUseSearch(!useSearch)} className={`w-9 h-9 rounded-full flex items-center justify-center transition-all mb-0.5 ${useSearch ? 'bg-blue-500/20 text-blue-400' : 'text-gray-500 hover:text-white'}`} title="Cari Internet">
-                                    <i className="fas fa-globe text-sm"></i>
-                                </button>
-                                <button onClick={startVoiceInput} className={`w-9 h-9 rounded-full flex items-center justify-center transition-all mb-0.5 ${isRecording ? 'bg-red-500 text-white pulse-ring' : 'text-gray-500 hover:text-white'}`} title="Rekam Suara">
-                                    <i className={`fas ${isRecording ? 'fa-microphone' : 'fa-microphone-alt'} text-sm`}></i>
-                                </button>
+                    <div className="fixed bottom-0 left-0 right-0 bg-[#000000]/90 backdrop-blur-xl border-t border-white/10 p-3 pb-safe z-40">
+                        <div className="max-w-2xl mx-auto relative">
+                            {/* IMAGE PREVIEW */}
+                            {selectedImage && (
+                                <div className="absolute bottom-full left-0 mb-3 glass-panel p-2 rounded-xl flex items-center gap-3 fade-in-up">
+                                    <img src={selectedImage} className="w-16 h-16 object-cover rounded-lg border border-white/10" />
+                                    <button onClick={() => setSelectedImage(null)} className="w-6 h-6 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"><i className="fas fa-times text-xs"></i></button>
+                                </div>
+                            )}
 
-                                <textarea ref={textareaRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder={isRecording ? "Mendengarkan..." : useSearch ? "Cari di internet..." : "Tanya Kebis..."} className="flex-1 bg-transparent text-white placeholder-gray-500 py-2.5 focus:outline-none resize-none max-h-[100px] text-[15px]" rows={1} />
+                            <div className="flex items-end gap-2 glass-input rounded-[24px] pl-2 pr-2 py-2 shadow-2xl transition-colors focus-within:border-brand/50">
+                                <button onClick={() => setUseSearch(!useSearch)} className={`w-9 h-9 rounded-full flex items-center justify-center transition-all mb-0.5 ${useSearch ? 'bg-blue-500/20 text-blue-400' : 'text-gray-500 hover:text-white'}`} title="Deep Search"><i className="fas fa-globe text-sm"></i></button>
                                 
-                                <button onClick={handleSend} disabled={!input.trim() || loading} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all mb-0.5 ${input.trim() && !loading ? 'bg-brand text-white hover:scale-105 shadow-lg shadow-brand/25' : 'bg-white/5 text-gray-500 cursor-not-allowed'}`}>
+                                {/* HIDDEN FILE INPUT */}
+                                <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
+                                <button onClick={() => fileInputRef.current.click()} className={`w-9 h-9 rounded-full flex items-center justify-center transition-all mb-0.5 ${selectedImage ? 'bg-purple-500/20 text-purple-400' : 'text-gray-500 hover:text-white'}`} title="Upload Image"><i className="fas fa-paperclip text-sm"></i></button>
+                                
+                                <button onClick={startVoiceInput} className={`w-9 h-9 rounded-full flex items-center justify-center transition-all mb-0.5 ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'text-gray-500 hover:text-white'}`} title="Voice"><i className={`fas ${isRecording ? 'fa-stop' : 'fa-microphone'} text-sm`}></i></button>
+
+                                <textarea ref={textareaRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder={isRecording ? "Mendengarkan..." : useSearch ? "Cari di web..." : "Tanya Kebis..."} className="flex-1 bg-transparent text-white placeholder-gray-500 py-2.5 focus:outline-none resize-none max-h-[100px] text-[15px] min-h-[44px]" rows={1} />
+                                
+                                <button onClick={() => handleSend()} disabled={(!input.trim() && !selectedImage) || loading} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all mb-0.5 ${input.trim() || selectedImage ? 'bg-brand text-white hover:scale-105 shadow-lg shadow-brand/25' : 'bg-white/5 text-gray-600 cursor-not-allowed'}`}>
                                     {loading ? <i className="fas fa-circle-notch fa-spin text-xs"></i> : <i className="fas fa-arrow-up text-sm"></i>}
                                 </button>
                             </div>
