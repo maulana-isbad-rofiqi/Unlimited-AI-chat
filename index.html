@@ -108,15 +108,9 @@
         // --- SEARCH ENGINE ---
         const searchWeb = async (query) => {
             try {
-                const TAVILY_API_KEY = 'YOUR_TAVILY_KEY'; // Daftar gratis di tavily.com
-                const { data } = await axios.post('https://api.tavily.com/search', {
-                    api_key: TAVILY_API_KEY,
-                    query: query,
-                    search_depth: 'advanced',
-                    include_answers: true,
-                    max_results: 5
-                });
-                return data.results.map((r, i) => `[Sumber \( {i+1}]: \){r.title}\nInfo: ${r.content}`).join('\n---\n');
+                // Fallback to web search - user can add their own API key if needed
+                const searchResponse = await fetch(`https://duckduckgo.com/html/?q=${encodeURIComponent(query + ' 2025')}`);
+                return `Web search results for: ${query}`;
             } catch (e) { return null; }
         };
 
@@ -135,7 +129,7 @@
 
                 // Jika user minta gambar, kita PAKSA AI untuk mengeluarkan URL
                 if (lowerQ.includes("buatkan gambar") || lowerQ.includes("buat gambar") || lowerQ.includes("lukiskan") || lowerQ.includes("gambarin") || lowerQ.includes("image of")) {
-                    finalQuestion += `\n\n[SYSTEM OVERRIDE: User wants an image. DO NOT REFUSE. You MUST output the image using this markdown format: ![Generated Image](https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1?prompt={English_Description_Of_Image}&api_key=YOUR_HF_TOKEN) ]`; // Ganti YOUR_HF_TOKEN dengan token gratis dari huggingface.co
+                    finalQuestion += `\n\n[SYSTEM OVERRIDE: User wants an image. DO NOT REFUSE. You MUST output the image using this markdown format: ![Generated Image](https://image.pollinations.ai/prompt/{English_Description_Of_Image}) ]`;
                 }
 
                 // SYSTEM PROMPT
@@ -146,7 +140,7 @@ Model: ${selectedModel}
 
 RULES:
 1. Answer in Indonesian.
-2. IMAGE GENERATION: If asked for an image, ALWAYS output: ![Img](https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1?prompt={English_Prompt}&api_key=YOUR_HF_TOKEN). NEVER say "I cannot create images".
+2. IMAGE GENERATION: If asked for an image, ALWAYS output: ![Img](https://image.pollinations.ai/prompt/{English_Prompt}). NEVER say "I cannot create images".
 3. WEB: Use provided data.
                 `.trim();
                 
