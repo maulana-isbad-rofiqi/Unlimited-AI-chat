@@ -19,17 +19,18 @@
             color: #e4e4e7;
             font-family: 'Plus Jakarta Sans', sans-serif;
             -webkit-tap-highlight-color: transparent;
-            overflow: hidden; /* App-like feel */
+            overflow: hidden;
         }
 
-        /* Background */
+        /* Background Mesh Animation */
         .bg-mesh {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1;
-            background: radial-gradient(circle at 50% 0%, #171717 0%, #000000 70%);
+            background: radial-gradient(circle at 50% -10%, #1e1b4b 0%, #000000 60%);
+            animation: pulseBg 10s infinite alternate;
         }
+        @keyframes pulseBg { 0% { opacity: 0.8; } 100% { opacity: 1; } }
 
         /* Custom Scrollbar */
-        .no-scrollbar::-webkit-scrollbar { display: none; }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-track { background: transparent; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
@@ -38,9 +39,6 @@
         .fade-in { animation: fadeIn 0.3s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
-        .slide-in-left { animation: slideInLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        @keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
-
         .slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
@@ -49,22 +47,21 @@
         .typing-dot:nth-child(2) { animation-delay: -0.16s; }
         @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
 
-        /* Glass */
-        .glass-header {
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .glass-sidebar {
-            background: #09090b;
-            border-right: 1px solid rgba(255, 255, 255, 0.08);
-        }
+        .pulse-ring { animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+        @keyframes pulse-ring { 0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+
+        /* Glass UI */
+        .glass-header { background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+        .glass-sidebar { background: #09090b; border-right: 1px solid rgba(255, 255, 255, 0.08); }
+        .glass-input { background: #18181b; border: 1px solid rgba(255, 255, 255, 0.1); }
 
         /* Markdown */
-        .prose p { margin-bottom: 0.5rem; line-height: 1.6; }
-        .prose pre { background: #111; padding: 12px; border-radius: 8px; overflow-x: auto; border: 1px solid #333; margin: 8px 0; }
-        .prose code { font-family: 'JetBrains Mono', monospace; background: #333; padding: 2px 5px; rounded: 4px; font-size: 0.85em; color: #a5b4fc; }
-        .prose img { border-radius: 12px; margin-top: 8px; max-width: 100%; border: 1px solid #333; }
+        .prose p { margin-bottom: 0.6rem; line-height: 1.7; }
+        .prose pre { background: #111; padding: 12px; border-radius: 8px; overflow-x: auto; border: 1px solid #333; margin: 10px 0; }
+        .prose code { font-family: 'JetBrains Mono', monospace; background: #262626; padding: 2px 6px; rounded: 4px; font-size: 0.85em; color: #818cf8; }
+        .prose img { border-radius: 12px; margin-top: 10px; max-width: 100%; border: 1px solid #333; }
+        .prose ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.5rem; }
+        .prose ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 0.5rem; }
     </style>
 
     <script>
@@ -89,8 +86,8 @@
         const TELEGRAM_BOT_USERNAME = "UnlimitedAIAccessBot"; 
         const MAX_FREE_CHATS = 3;
 
-        // --- API ---
-        const unlimitedai = async (question, sessionId, historyMessages, modelConfig) => {
+        // --- API INTELLIGENCE ---
+        const unlimitedai = async (question, sessionId, historyMessages, modelConfig, useSearch) => {
             try {
                 if (!question) throw new Error('Input kosong.');
                 const BACKEND_URL = "/api"; 
@@ -100,12 +97,29 @@
                 let finalQuestion = question;
                 let systemInstruction = "";
 
-                if (modelConfig.id === 'creative') systemInstruction = "[SYSTEM: Be highly creative and imaginative.] ";
-                else if (modelConfig.id === 'fast') systemInstruction = "[SYSTEM: Be concise and direct.] ";
-                else systemInstruction = "[SYSTEM: Think step-by-step. Use logic.] ";
+                // SUPER SMART LOGIC PROMPT
+                if (modelConfig.id === 'reasoning') {
+                    systemInstruction = `[SYSTEM: You are Kebis AI, a Super-Intelligent Assistant. 
+                    Rules:
+                    1. Think step-by-step before answering (Chain of Thought).
+                    2. Be extremely accurate, logical, and detailed.
+                    3. If the answer involves code, provide efficient and commented code.
+                    4. Maintain a helpful, realistic, and professional persona.] `;
+                } else if (modelConfig.id === 'creative') {
+                    systemInstruction = `[SYSTEM: You are a Creative Genius. Use vivid language, emotional depth, and imaginative concepts.] `;
+                } else {
+                    systemInstruction = `[SYSTEM: Be concise, direct, and factual.] `;
+                }
 
-                if (finalQuestion.toLowerCase().match(/(buat|generate|lukis).*(gambar|image|foto)/)) {
-                    finalQuestion += `\n\n[SYSTEM: Generate image: ![Img](https://image.pollinations.ai/prompt/{english_prompt})]`;
+                // WEB SEARCH INJECTION
+                if (useSearch) {
+                    systemInstruction += ` [WEB SEARCH MODE ENABLED: The user wants up-to-date information. Act as if you have searched the internet. Provide current facts, dates, and news if relevant.] `;
+                    finalQuestion += " (Search the web for latest info)";
+                }
+
+                // IMAGE GEN INJECTION
+                if (finalQuestion.toLowerCase().match(/(buat|generate|lukis|bikin).*(gambar|image|foto)/)) {
+                    finalQuestion += `\n\n[SYSTEM: Generate image using this markdown format: ![Img](https://image.pollinations.ai/prompt/{english_prompt})]`;
                 }
 
                 const formattedHistory = historyMessages.filter(m => !m.isError && !m.isSystem).slice(-8).map(m => ({
@@ -134,72 +148,48 @@
 
         // --- COMPONENTS ---
 
-        const Sidebar = ({ isOpen, onClose, history, onSelectSession, onDeleteHistory, onNewChat, onOpenAbout }) => {
-            return (
-                <>
-                    {isOpen && <div className="fixed inset-0 bg-black/60 z-[60] backdrop-blur-sm fade-in" onClick={onClose}></div>}
-                    <div className={`fixed top-0 left-0 h-full w-72 glass-sidebar z-[70] transform transition-transform duration-300 ease-in-out flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                        
-                        {/* Sidebar Header */}
-                        <div className="p-4 border-b border-white/5">
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="font-bold text-lg">Menu</h2>
-                                <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center"><i className="fas fa-times"></i></button>
-                            </div>
-                            <button onClick={() => { onNewChat(); onClose(); }} className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl py-3 px-4 flex items-center gap-3 transition-colors">
-                                <div className="w-6 h-6 rounded-full bg-brand flex items-center justify-center"><i className="fas fa-plus text-[10px]"></i></div>
-                                <span className="text-sm font-medium">Chat Baru</span>
-                            </button>
+        const Sidebar = ({ isOpen, onClose, history, onSelectSession, onDeleteHistory, onNewChat, onOpenAbout }) => (
+            <>
+                {isOpen && <div className="fixed inset-0 bg-black/60 z-[60] backdrop-blur-sm fade-in" onClick={onClose}></div>}
+                <div className={`fixed top-0 left-0 h-full w-72 glass-sidebar z-[70] transform transition-transform duration-300 ease-in-out flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                    <div className="p-4 border-b border-white/5">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="font-bold text-lg text-white">Menu</h2>
+                            <button onClick={onClose}><i className="fas fa-times text-gray-400"></i></button>
                         </div>
-
-                        {/* History List */}
-                        <div className="flex-1 overflow-y-auto custom-scroll p-3">
-                            <div className="text-xs font-semibold text-gray-500 mb-2 px-2 uppercase tracking-wider">Riwayat Chat</div>
-                            {history.length === 0 ? (
-                                <div className="text-center text-gray-600 text-xs py-10">Belum ada riwayat</div>
-                            ) : (
-                                <div className="space-y-1">
-                                    {history.map((session) => (
-                                        <div key={session.id} className="group relative flex items-center">
-                                            <button onClick={() => { onSelectSession(session.id); onClose(); }} className="flex-1 text-left px-3 py-3 rounded-lg hover:bg-white/5 text-sm text-gray-300 hover:text-white truncate transition-colors">
-                                                {session.title}
-                                            </button>
-                                            <button onClick={(e) => { e.stopPropagation(); onDeleteHistory(session.id); }} className="absolute right-2 w-7 h-7 flex items-center justify-center rounded-md text-gray-600 hover:text-red-400 hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-all">
-                                                <i className="fas fa-trash-alt text-xs"></i>
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Sidebar Footer */}
-                        <div className="p-4 border-t border-white/5 bg-black/20">
-                            <button onClick={onOpenAbout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors text-sm">
-                                <i className="fas fa-info-circle"></i> Tentang Kebis AI
-                            </button>
-                        </div>
+                        <button onClick={() => { onNewChat(); onClose(); }} className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl py-3 px-4 flex items-center gap-3 transition-colors shadow-lg">
+                            <div className="w-6 h-6 rounded-full bg-brand flex items-center justify-center"><i className="fas fa-plus text-[10px]"></i></div>
+                            <span className="text-sm font-medium">Chat Baru</span>
+                        </button>
                     </div>
-                </>
-            );
-        };
+                    <div className="flex-1 overflow-y-auto custom-scroll p-3">
+                        <div className="text-xs font-semibold text-gray-500 mb-2 px-2 uppercase tracking-wider">Riwayat</div>
+                        {history.length === 0 ? <div className="text-center text-gray-600 text-xs py-10">Kosong</div> : 
+                            <div className="space-y-1">{history.map((session) => (
+                                <div key={session.id} className="group relative flex items-center">
+                                    <button onClick={() => { onSelectSession(session.id); onClose(); }} className="flex-1 text-left px-3 py-3 rounded-lg hover:bg-white/5 text-sm text-gray-300 hover:text-white truncate transition-colors">{session.title}</button>
+                                    <button onClick={(e) => { e.stopPropagation(); onDeleteHistory(session.id); }} className="absolute right-2 w-7 h-7 flex items-center justify-center rounded-md text-gray-600 hover:text-red-400 hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-all"><i className="fas fa-trash-alt text-xs"></i></button>
+                                </div>
+                            ))}</div>
+                        }
+                    </div>
+                    <div className="p-4 border-t border-white/5 bg-black/20">
+                        <button onClick={onOpenAbout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors text-sm"><i className="fas fa-info-circle"></i> Tentang</button>
+                    </div>
+                </div>
+            </>
+        );
 
         const AboutModal = ({ isOpen, onClose }) => {
             if (!isOpen) return null;
             return (
                 <div className="fixed inset-0 z-[80] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md fade-in" onClick={onClose}>
                     <div className="w-full max-w-sm bg-[#111] border border-white/10 rounded-2xl p-8 text-center relative shadow-2xl scale-in" onClick={e => e.stopPropagation()}>
-                        <div className="w-16 h-16 mx-auto bg-gradient-to-tr from-brand to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-brand/20 mb-4">
-                            <i className="fas fa-cube text-white text-2xl"></i>
-                        </div>
-                        <h2 className="text-xl font-bold text-white">Kebis AI</h2>
-                        <div className="inline-block px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] text-gray-400 mt-2 mb-4">v4.0 Ultimate</div>
-                        <p className="text-sm text-gray-400 leading-relaxed mb-6">
-                            Asisten AI cerdas dengan kemampuan multimodal. Didesain untuk kecepatan dan kreativitas.
-                        </p>
-                        <div className="border-t border-white/5 pt-4">
-                            <p className="text-[10px] text-gray-600 uppercase tracking-widest">Developed by <span className="text-gray-300 font-bold">Itsbad</span></p>
-                        </div>
+                        <div className="w-16 h-16 mx-auto bg-gradient-to-tr from-brand to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-brand/20 mb-4"><i className="fas fa-cube text-white text-2xl"></i></div>
+                        <h2 className="text-xl font-bold text-white">Kebis AI Ultimate</h2>
+                        <div className="inline-block px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] text-gray-400 mt-2 mb-4">v5.0 Super Smart</div>
+                        <p className="text-sm text-gray-400 leading-relaxed mb-6">Dilengkapi dengan Chain-of-Thought reasoning, akses internet tersimulasi, dan input suara.</p>
+                        <div className="border-t border-white/5 pt-4"><p className="text-[10px] text-gray-600 uppercase tracking-widest">Dev: <span className="text-gray-300 font-bold">Itsbad</span></p></div>
                         <button onClick={onClose} className="absolute top-3 right-3 text-gray-600 hover:text-white"><i className="fas fa-times"></i></button>
                     </div>
                 </div>
@@ -209,17 +199,14 @@
         const ModelSelector = ({ isOpen, onClose, current, onSelect }) => {
             if (!isOpen) return null;
             const models = [
-                { id: 'reasoning', name: 'Cerdas', icon: 'fa-brain', desc: 'Analisis mendalam & Logika', color: 'text-blue-400' },
-                { id: 'creative', name: 'Kreatif', icon: 'fa-paint-brush', desc: 'Imajinasi & Sastra', color: 'text-purple-400' },
-                { id: 'fast', name: 'Cepat', icon: 'fa-bolt', desc: 'Singkat & Efisien', color: 'text-yellow-400' },
+                { id: 'reasoning', name: 'Super Cerdas', icon: 'fa-brain', desc: 'Logika mendalam & Analitis', color: 'text-blue-400' },
+                { id: 'creative', name: 'Kreatif', icon: 'fa-paint-brush', desc: 'Imajinatif & Artistik', color: 'text-purple-400' },
+                { id: 'fast', name: 'Cepat', icon: 'fa-bolt', desc: 'Jawaban instan', color: 'text-yellow-400' },
             ];
             return (
                 <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4 fade-in" onClick={onClose}>
                     <div className="bg-[#121212] border border-white/10 w-full max-w-sm rounded-2xl p-4 slide-up shadow-2xl" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-white font-semibold">Mode AI</h3>
-                            <button onClick={onClose}><i className="fas fa-times text-gray-400"></i></button>
-                        </div>
+                        <div className="flex justify-between items-center mb-4"><h3 className="text-white font-semibold">Mode Otak AI</h3><button onClick={onClose}><i className="fas fa-times text-gray-400"></i></button></div>
                         <div className="space-y-2">
                             {models.map(m => (
                                 <button key={m.id} onClick={() => { onSelect(m); onClose(); }} className={`w-full flex items-center gap-4 p-3 rounded-xl border transition-all ${current.id === m.id ? 'bg-white/10 border-brand' : 'bg-black/40 border-transparent hover:bg-white/5'}`}>
@@ -237,60 +224,37 @@
         const Header = ({ onOpenSidebar, model, setModelOpen, isLoggedIn, count, onLogin }) => (
             <div className="fixed top-0 left-0 right-0 h-16 glass-header z-40 flex items-center justify-between px-4 transition-all">
                 <div className="flex items-center gap-3">
-                    {/* HAMBURGER MENU BUTTON */}
-                    <button onClick={onOpenSidebar} className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white transition-colors">
-                        <i className="fas fa-bars"></i>
-                    </button>
+                    <button onClick={onOpenSidebar} className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white transition-colors"><i className="fas fa-bars"></i></button>
                     <div className="font-bold text-white text-lg tracking-tight">Kebis AI</div>
                 </div>
-                
                 <div className="flex items-center gap-2">
-                    {/* Model Badge */}
                     <button onClick={() => setModelOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
                         <i className={`fas ${model.icon} text-[10px] ${model.id === 'reasoning' ? 'text-blue-400' : model.id === 'creative' ? 'text-purple-400' : 'text-yellow-400'}`}></i>
                         <span className="text-xs text-gray-300 font-medium">{model.name}</span>
                     </button>
-                    
-                    {/* Login/Count */}
-                    <button onClick={onLogin} className={`w-9 h-9 rounded-full border flex items-center justify-center ml-1 transition-all ${isLoggedIn ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-white/5 border-white/10 text-gray-400'}`}>
-                        <i className={`fas ${isLoggedIn ? 'fa-user-check' : 'fa-lock'} text-xs`}></i>
-                    </button>
+                    <button onClick={onLogin} className={`w-9 h-9 rounded-full border flex items-center justify-center ml-1 transition-all ${isLoggedIn ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-white/5 border-white/10 text-gray-400'}`}><i className={`fas ${isLoggedIn ? 'fa-user-check' : 'fa-lock'} text-xs`}></i></button>
                 </div>
             </div>
         );
 
         const LoginModal = ({ isOpen, onClose, onLogin }) => {
-            const [code, setCode] = useState('');
-            const [error, setError] = useState('');
-            const [loading, setLoading] = useState(false);
+            const [code, setCode] = useState(''); const [error, setError] = useState(''); const [loading, setLoading] = useState(false);
             const handleSubmit = async () => {
                 if(!code) return; setLoading(true); setError('');
-                try {
-                    const res = await axios.get(GOOGLE_SCRIPT_URL);
-                    if((res.data.validCodes || []).includes(code) || code === "ITSBAD") { onLogin(); onClose(); setCode(''); } 
-                    else setError('Kode tidak valid');
-                } catch { setError('Gagal validasi'); } finally { setLoading(false); }
+                try { const res = await axios.get(GOOGLE_SCRIPT_URL); if((res.data.validCodes || []).includes(code) || code === "ITSBAD") { onLogin(); onClose(); setCode(''); } else setError('Kode tidak valid'); } catch { setError('Gagal validasi'); } finally { setLoading(false); }
             };
             if(!isOpen) return null;
             return (
                 <div className="fixed inset-0 z-[90] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md fade-in">
                     <div className="w-full max-w-xs bg-[#121212] border border-white/10 rounded-2xl p-6 shadow-2xl relative">
-                        <div className="text-center mb-6 mt-2">
-                            <div className="w-12 h-12 mx-auto bg-white/5 rounded-full flex items-center justify-center mb-3 text-brand"><i className="fas fa-key text-lg"></i></div>
-                            <h2 className="text-lg font-bold text-white">Akses Premium</h2>
-                        </div>
-                        <div className="space-y-3">
-                            <input type="text" value={code} onChange={e => setCode(e.target.value.trim())} placeholder="KEY-XXXX" className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-center font-mono text-sm text-white focus:border-brand focus:outline-none" />
-                            {error && <p className="text-red-500 text-[10px] text-center">{error}</p>}
-                            <button onClick={handleSubmit} disabled={loading} className="w-full bg-brand hover:bg-brandDark text-white py-3 rounded-xl text-sm font-semibold">{loading ? '...' : 'Buka Akses'}</button>
-                            <a href={`https://t.me/${TELEGRAM_BOT_USERNAME}?start=web`} target="_blank" className="block text-center text-[10px] text-gray-500 hover:text-brand mt-4">Belum punya kode? Klik disini</a>
-                        </div>
-                        <button onClick={onClose} className="absolute top-3 right-3 text-gray-500"><i className="fas fa-times"></i></button>
+                        <div className="text-center mb-6 mt-2"><div className="w-14 h-14 mx-auto bg-white/5 rounded-full flex items-center justify-center mb-3 text-brand border border-white/5"><i className="fas fa-key text-xl"></i></div><h2 className="text-lg font-bold text-white">Akses Premium</h2></div>
+                        <div className="space-y-3"><input type="text" value={code} onChange={e => setCode(e.target.value.trim())} placeholder="KEY-XXXX" className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-center font-mono text-sm text-white focus:border-brand focus:outline-none" />{error && <p className="text-red-500 text-[10px] text-center">{error}</p>}<button onClick={handleSubmit} disabled={loading} className="w-full bg-brand hover:bg-brandDark text-white py-3 rounded-xl text-sm font-semibold shadow-lg shadow-brand/20 transition-all">{loading ? '...' : 'Buka Akses'}</button><a href={`https://t.me/${TELEGRAM_BOT_USERNAME}?start=web`} target="_blank" className="block text-center text-[10px] text-gray-500 hover:text-brand mt-4">Belum punya kode? Klik disini</a></div><button onClick={onClose} className="absolute top-3 right-3 text-gray-500"><i className="fas fa-times"></i></button>
                     </div>
                 </div>
             );
         };
 
+        // --- MAIN APP ---
         const App = () => {
             const [input, setInput] = useState('');
             const [messages, setMessages] = useState([]);
@@ -300,92 +264,73 @@
             const [chatCount, setChatCount] = useState(0);
             const [sessionId, setSessionId] = useState(crypto.randomUUID());
             
-            // UI States
+            // Advanced Features
             const [sidebarOpen, setSidebarOpen] = useState(false);
             const [showModelMenu, setShowModelMenu] = useState(false);
             const [showAbout, setShowAbout] = useState(false);
-            const [currentModel, setCurrentModel] = useState({ id: 'reasoning', name: 'Cerdas', icon: 'fa-brain' });
+            const [currentModel, setCurrentModel] = useState({ id: 'reasoning', name: 'Super Cerdas', icon: 'fa-brain' });
             const [chatHistory, setChatHistory] = useState([]);
+            const [useSearch, setUseSearch] = useState(false);
+            const [isRecording, setIsRecording] = useState(false);
 
             const messagesEndRef = useRef(null);
             const textareaRef = useRef(null);
 
-            // Load Data
             useEffect(() => {
                 setIsLoggedIn(localStorage.getItem('kebis_login') === 'true');
                 setChatCount(parseInt(localStorage.getItem('kebis_count') || '0'));
-                const savedHistory = JSON.parse(localStorage.getItem('kebis_history') || '[]');
-                setChatHistory(savedHistory);
+                setChatHistory(JSON.parse(localStorage.getItem('kebis_history') || '[]'));
             }, []);
 
             useEffect(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), [messages, loading]);
             useEffect(() => { if(textareaRef.current) { textareaRef.current.style.height = 'auto'; textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 100) + 'px'; } }, [input]);
 
-            // Logic: Save History
             const updateHistory = (msg) => {
-                // Cek apakah session ID ini sudah ada di history
                 const existingIndex = chatHistory.findIndex(h => h.id === sessionId);
                 let newHistory;
-                
-                if (existingIndex >= 0) {
-                    // Sudah ada, update tanggal saja (opsional, atau biarkan)
-                    newHistory = [...chatHistory];
-                } else {
-                    // Belum ada, buat baru
+                if (existingIndex >= 0) newHistory = [...chatHistory];
+                else {
                     const title = msg.length > 30 ? msg.substring(0, 30) + '...' : msg;
-                    const newItem = { id: sessionId, title: title, date: new Date() };
-                    newHistory = [newItem, ...chatHistory];
+                    newHistory = [{ id: sessionId, title: title, date: new Date() }, ...chatHistory];
                 }
                 setChatHistory(newHistory);
                 localStorage.setItem('kebis_history', JSON.stringify(newHistory));
             };
 
-            const handleNewChat = () => {
-                setMessages([]);
-                setSessionId(crypto.randomUUID());
-                setSidebarOpen(false);
-            };
+            const handleNewChat = () => { setMessages([]); setSessionId(crypto.randomUUID()); setSidebarOpen(false); };
+            const handleDeleteHistory = (id) => { if(confirm('Hapus riwayat ini?')) { const newHistory = chatHistory.filter(h => h.id !== id); setChatHistory(newHistory); localStorage.setItem('kebis_history', JSON.stringify(newHistory)); if (id === sessionId) handleNewChat(); } };
+            const handleSelectSession = (id) => { setSessionId(id); setMessages([{ role: 'assistant', content: 'Melanjutkan sesi...' }]); setSidebarOpen(false); };
 
-            const handleDeleteHistory = (id) => {
-                if(confirm('Hapus riwayat ini?')) {
-                    const newHistory = chatHistory.filter(h => h.id !== id);
-                    setChatHistory(newHistory);
-                    localStorage.setItem('kebis_history', JSON.stringify(newHistory));
-                    if (id === sessionId) handleNewChat();
+            // VOICE INPUT LOGIC
+            const startVoiceInput = () => {
+                if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                    alert("Browser Anda tidak mendukung Voice Input."); return;
                 }
-            };
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                const recognition = new SpeechRecognition();
+                recognition.lang = 'id-ID';
+                recognition.interimResults = false;
 
-            const handleSelectSession = (id) => {
-                // Di aplikasi static tanpa database, kita tidak bisa me-load isi chat lama secara persis
-                // kecuali kita menyimpannya di localStorage juga (yang akan berat).
-                // Jadi di sini kita simulasikan "Melanjutkan sesi" dengan ID yang sama.
-                // Jika ingin full history load, localStorage harus menyimpan seluruh array messages per ID.
-                
-                // Versi Simple: Reset view, set ID baru.
-                setSessionId(id);
-                setMessages([{ role: 'assistant', content: 'Memuat sesi lampau... (Chat lama tidak tersimpan di mode lokal, tapi AI mengingat konteks jika backend mendukung).' }]);
-                setSidebarOpen(false);
+                recognition.onstart = () => setIsRecording(true);
+                recognition.onend = () => setIsRecording(false);
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    setInput(prev => prev + (prev ? ' ' : '') + transcript);
+                };
+                recognition.start();
             };
 
             const handleSend = async () => {
                 if (!input.trim() || loading) return;
-                if (!isLoggedIn) {
-                    if (chatCount >= MAX_FREE_CHATS) { setShowLogin(true); return; }
-                    const next = chatCount + 1;
-                    setChatCount(next);
-                    localStorage.setItem('kebis_count', next);
-                }
+                if (!isLoggedIn) { if (chatCount >= MAX_FREE_CHATS) { setShowLogin(true); return; } const next = chatCount + 1; setChatCount(next); localStorage.setItem('kebis_count', next); }
 
-                const q = input; 
-                setInput('');
+                const q = input; setInput('');
                 setMessages(p => [...p, { role: 'user', content: q }]);
                 setLoading(true);
-
-                // Save History saat chat pertama
                 if (messages.length === 0) updateHistory(q);
 
                 try {
-                    const res = await unlimitedai(q, sessionId, messages, currentModel);
+                    const res = await unlimitedai(q, sessionId, messages, currentModel, useSearch);
                     const cleanRes = res.replace(/UnlimitedAI/gi, "Kebis AI").replace(/Unlimited AI/gi, "Kebis AI");
                     setMessages(p => [...p, { role: 'assistant', content: cleanRes }]);
                 } catch (e) {
@@ -394,47 +339,25 @@
             };
 
             const renderContent = (text) => {
-                let html = text
-                    .replace(/\*\*(.*?)\*\*/g, '<b class="text-white">$1</b>')
-                    .replace(/\n/g, '<br>')
-                    .replace(/`([^`]+)`/g, '<code class="bg-white/10 px-1 rounded text-indigo-300">$1</code>')
-                    .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="w-full rounded-lg border border-white/10 shadow-lg my-2" />');
+                let html = text.replace(/\*\*(.*?)\*\*/g, '<b class="text-white">$1</b>').replace(/\n/g, '<br>').replace(/`([^`]+)`/g, '<code class="bg-white/10 px-1 rounded text-indigo-300">$1</code>').replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="w-full rounded-lg border border-white/10 shadow-lg my-2" />');
                 return <div className="prose text-sm text-gray-300" dangerouslySetInnerHTML={{__html: html}}></div>;
             };
 
             return (
                 <div className="flex flex-col h-[100dvh] w-full overflow-hidden">
-                    
-                    <Header 
-                        onOpenSidebar={() => setSidebarOpen(true)}
-                        model={currentModel}
-                        setModelOpen={setShowModelMenu}
-                        isLoggedIn={isLoggedIn}
-                        count={chatCount}
-                        onLogin={() => isLoggedIn ? (confirm("Logout?") && (localStorage.removeItem('kebis_login'), setIsLoggedIn(false))) : setShowLogin(true)}
-                    />
-
-                    <Sidebar 
-                        isOpen={sidebarOpen} 
-                        onClose={() => setSidebarOpen(false)} 
-                        history={chatHistory}
-                        onNewChat={handleNewChat}
-                        onSelectSession={handleSelectSession}
-                        onDeleteHistory={handleDeleteHistory}
-                        onOpenAbout={() => { setSidebarOpen(false); setShowAbout(true); }}
-                    />
-
+                    <Header onOpenSidebar={() => setSidebarOpen(true)} model={currentModel} setModelOpen={setShowModelMenu} isLoggedIn={isLoggedIn} count={chatCount} onLogin={() => isLoggedIn ? (confirm("Logout?") && (localStorage.removeItem('kebis_login'), setIsLoggedIn(false))) : setShowLogin(true)} />
+                    <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} history={chatHistory} onNewChat={handleNewChat} onSelectSession={handleSelectSession} onDeleteHistory={handleDeleteHistory} onOpenAbout={() => { setSidebarOpen(false); setShowAbout(true); }} />
                     <ModelSelector isOpen={showModelMenu} onClose={() => setShowModelMenu(false)} current={currentModel} onSelect={setCurrentModel} />
                     <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} onLogin={() => { setIsLoggedIn(true); localStorage.setItem('kebis_login', 'true'); }} />
                     <AboutModal isOpen={showAbout} onClose={() => setShowAbout(false)} />
 
-                    {/* CHAT AREA */}
-                    <div className="flex-1 pt-16 pb-20 overflow-y-auto w-full custom-scroll">
+                    <div className="flex-1 pt-16 pb-28 overflow-y-auto w-full custom-scroll">
                         <div className="max-w-2xl mx-auto min-h-full flex flex-col p-4">
                             {messages.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center flex-1 opacity-70 mt-20">
-                                    <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mb-4"><i className="fas fa-cube text-3xl text-white/50"></i></div>
-                                    <p className="text-sm text-gray-500">Mulai percakapan dengan Kebis AI</p>
+                                    <div className="w-20 h-20 bg-white/5 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-brand/10"><i className="fas fa-cube text-4xl text-white/50"></i></div>
+                                    <h3 className="text-lg font-bold text-white mb-2">Halo, Saya Kebis AI</h3>
+                                    <p className="text-sm text-gray-500 text-center max-w-xs">Tanyakan apa saja. Saya telah ditingkatkan untuk berpikir lebih cerdas dan logis.</p>
                                 </div>
                             ) : (
                                 <div className="flex flex-col gap-6">
@@ -442,9 +365,7 @@
                                         <div key={i} className={`flex w-full fade-in ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                             <div className={`flex max-w-[88%] gap-3 ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                                                 {m.role !== 'user' && <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 mt-1"><i className={`fas ${m.isError ? 'fa-exclamation' : 'fa-robot'} text-gray-400 text-xs`}></i></div>}
-                                                <div className={`px-4 py-3 rounded-2xl shadow-sm ${m.role === 'user' ? 'bg-brand text-white rounded-tr-sm' : m.isError ? 'bg-red-900/20 border border-red-500/30' : 'glass text-gray-200 rounded-tl-sm'}`}>
-                                                    {renderContent(m.content)}
-                                                </div>
+                                                <div className={`px-4 py-3 rounded-2xl shadow-sm ${m.role === 'user' ? 'bg-brand text-white rounded-tr-sm' : m.isError ? 'bg-red-900/20 border border-red-500/30' : 'glass text-gray-200 rounded-tl-sm'}`}>{renderContent(m.content)}</div>
                                             </div>
                                         </div>
                                     ))}
@@ -455,12 +376,23 @@
                         </div>
                     </div>
 
-                    {/* INPUT */}
+                    {/* ADVANCED INPUT BAR */}
                     <div className="fixed bottom-0 left-0 right-0 bg-[#000000]/80 backdrop-blur-xl border-t border-white/10 p-3 pb-safe z-40">
                         <div className="max-w-2xl mx-auto">
-                            <div className="flex items-end gap-2 bg-[#18181b] border border-white/10 rounded-[26px] pl-4 pr-2 py-2 shadow-2xl focus-within:border-brand/50 transition-colors">
-                                <textarea ref={textareaRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder={`Tanya Kebis (${currentModel.name})...`} className="flex-1 bg-transparent text-white placeholder-gray-500 py-2.5 focus:outline-none resize-none max-h-[120px] text-[15px]" rows={1} />
-                                <button onClick={handleSend} disabled={!input.trim() || loading} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all mb-0.5 ${input.trim() && !loading ? 'bg-brand text-white hover:scale-105' : 'bg-white/5 text-gray-500 cursor-not-allowed'}`}>{loading ? <i className="fas fa-circle-notch fa-spin text-xs"></i> : <i className="fas fa-arrow-up text-sm"></i>}</button>
+                            <div className="flex items-end gap-2 glass-input rounded-[26px] pl-2 pr-2 py-2 shadow-2xl transition-colors">
+                                {/* TOOL BUTTONS */}
+                                <button onClick={() => setUseSearch(!useSearch)} className={`w-9 h-9 rounded-full flex items-center justify-center transition-all mb-0.5 ${useSearch ? 'bg-blue-500/20 text-blue-400' : 'text-gray-500 hover:text-white'}`} title="Cari Internet">
+                                    <i className="fas fa-globe text-sm"></i>
+                                </button>
+                                <button onClick={startVoiceInput} className={`w-9 h-9 rounded-full flex items-center justify-center transition-all mb-0.5 ${isRecording ? 'bg-red-500 text-white pulse-ring' : 'text-gray-500 hover:text-white'}`} title="Rekam Suara">
+                                    <i className={`fas ${isRecording ? 'fa-microphone' : 'fa-microphone-alt'} text-sm`}></i>
+                                </button>
+
+                                <textarea ref={textareaRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder={isRecording ? "Mendengarkan..." : useSearch ? "Cari di internet..." : "Tanya Kebis..."} className="flex-1 bg-transparent text-white placeholder-gray-500 py-2.5 focus:outline-none resize-none max-h-[100px] text-[15px]" rows={1} />
+                                
+                                <button onClick={handleSend} disabled={!input.trim() || loading} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all mb-0.5 ${input.trim() && !loading ? 'bg-brand text-white hover:scale-105 shadow-lg shadow-brand/25' : 'bg-white/5 text-gray-500 cursor-not-allowed'}`}>
+                                    {loading ? <i className="fas fa-circle-notch fa-spin text-xs"></i> : <i className="fas fa-arrow-up text-sm"></i>}
+                                </button>
                             </div>
                         </div>
                     </div>
