@@ -42,24 +42,31 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // --- CONFIGURATION ---
-        // Ganti URL ini dengan URL Web App Google Script Anda (Langkah 2)
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxbKjeBQQQG9onmJd1igq7F9cHj6DyCgs06HwjVFAVMumShxJS3E51n-nPVyF30kySj/exec";
+        // --- KONFIGURASI (SUDAH DIISI OTOMATIS) ---
         
-        // Username Bot Telegram Anda (Tanpa @)
+        // 1. URL Script Google kamu (Sudah terisi)
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz1i4BKzWcyBmv008V2SqqOYwwtLMfGvcmgEi2qR7vnMsTMQUC--bOqn1k6IcDSUZ8L/exec"; 
+        
+        // 2. Username Bot Telegram (GANTI INI DENGAN USERNAME BOT KAMU!)
+        // Contoh: "UnlimitedAIBot" (Jangan pakai @)
         const TELEGRAM_BOT_USERNAME = "UnlimitedAIAccessBot"; 
 
         const MAX_FREE_CHATS = 3;
 
-        // --- API ---
+        // --- LOGIKA API ---
         const unlimitedai = async (question) => {
             try {
                 if (!question) throw new Error('Pertanyaan kosong.');
+                
+                // Menggunakan Backend Vercel (/api)
                 const BACKEND_URL = "/api"; 
+                
                 const { data: tokenData } = await axios.get(`${BACKEND_URL}/token`);
                 if (!tokenData || !tokenData.token) throw new Error("Gagal otentikasi.");
+                
                 const chatUuid = crypto.randomUUID();
                 const msgUuid = crypto.randomUUID();
+                
                 const { data } = await axios.post(`${BACKEND_URL}/chat`, {
                     messages: [{
                         id: msgUuid, createdAt: new Date().toISOString(), role: 'user', content: question,
@@ -82,35 +89,39 @@
             }
         };
 
-        // --- COMPONENTS ---
+        // --- KOMPONEN ---
         const LoginModal = ({ isOpen, onClose, onLogin }) => {
             const [code, setCode] = useState('');
             const [error, setError] = useState('');
-            const [serverCode, setServerCode] = useState(null);
+            const [loading, setLoading] = useState(false);
 
-            // Fetch code from Google Script when modal opens
-            useEffect(() => {
-                if (isOpen) {
-                    axios.get(GOOGLE_SCRIPT_URL)
-                        .then(res => setServerCode(res.data.code))
-                        .catch(err => console.error("Gagal ambil kode server"));
-                }
-            }, [isOpen]);
+            const handleSubmit = async () => {
+                if(!code) return;
+                setLoading(true);
+                setError('');
 
-            if (!isOpen) return null;
+                try {
+                    // Cek ke Google Script apakah kode valid
+                    const response = await axios.get(GOOGLE_SCRIPT_URL);
+                    const validCodes = response.data.validCodes || []; 
 
-            const handleSubmit = () => {
-                // Validasi: Code user === Code di Google Sheet
-                // Juga izinkan master key 'ITSBAD'
-                if (code === serverCode || code === "ITSBAD") {
-                    onLogin();
-                    onClose();
-                    setCode('');
-                    setError('');
-                } else {
-                    setError('Kode salah atau sudah kadaluarsa.');
+                    // Validasi: Kode ada di database ATAU Master Key 'ITSBAD'
+                    if (validCodes.includes(code) || code === "ITSBAD") {
+                        onLogin();
+                        onClose();
+                        setCode('');
+                    } else {
+                        setError('Kode salah atau sudah kadaluarsa.');
+                    }
+                } catch (err) {
+                    setError('Gagal terhubung ke server validasi.');
+                    console.error(err);
+                } finally {
+                    setLoading(false);
                 }
             };
+
+            if (!isOpen) return null;
 
             return (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 glass-modal animate-in fade-in duration-200">
@@ -120,24 +131,26 @@
                             <div className="w-12 h-12 mx-auto bg-zinc-800 rounded-full flex items-center justify-center mb-3 border border-zinc-700">
                                 <i className="fas fa-shield-alt text-brand text-xl"></i>
                             </div>
-                            <h2 className="text-xl font-bold text-white">Akses VIP</h2>
-                            <p className="text-sm text-zinc-400 mt-1">Masukkan kode akses terbaru.</p>
+                            <h2 className="text-xl font-bold text-white">Akses Member</h2>
+                            <p className="text-sm text-zinc-400 mt-1">Masukkan Kunci Akses Telegram Anda.</p>
                         </div>
                         <div className="space-y-4">
                             <div>
                                 <input 
                                     type="text" value={code} onChange={(e) => setCode(e.target.value.trim())}
-                                    placeholder="Tempel Kode Disini..."
-                                    className="w-full bg-dark border border-zinc-700 rounded-xl px-4 py-3 text-center font-mono font-bold text-white focus:border-brand focus:outline-none"
+                                    placeholder="KEY-XXXXXX"
+                                    className="w-full bg-dark border border-zinc-700 rounded-xl px-4 py-3 text-center font-mono font-bold text-white focus:border-brand focus:outline-none uppercase"
                                 />
                                 {error && <p className="text-red-400 text-xs text-center mt-2">{error}</p>}
                             </div>
-                            <button onClick={handleSubmit} className="w-full bg-brand hover:bg-brandDark text-white font-medium py-3 rounded-xl shadow-lg shadow-brand/20">Masuk</button>
+                            <button onClick={handleSubmit} disabled={loading} className="w-full bg-brand hover:bg-brandDark text-white font-medium py-3 rounded-xl shadow-lg shadow-brand/20 disabled:opacity-50 flex justify-center items-center gap-2">
+                                {loading ? <><i className="fas fa-spinner fa-spin"></i> Memeriksa...</> : "Masuk"}
+                            </button>
                             
                             <div className="relative my-2"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-zinc-800"></div></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-surface px-2 text-zinc-500">Belum punya kode?</span></div></div>
                             
-                            <a href={`https://t.me/${TELEGRAM_BOT_USERNAME}`} target="_blank" className="block w-full bg-[#24A1DE]/10 hover:bg-[#24A1DE]/20 border border-[#24A1DE]/30 text-[#24A1DE] text-center py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2">
-                                <i className="fab fa-telegram text-lg"></i> Minta Kode via Bot
+                            <a href={`https://t.me/${TELEGRAM_BOT_USERNAME}?start=web`} target="_blank" className="block w-full bg-[#24A1DE]/10 hover:bg-[#24A1DE]/20 border border-[#24A1DE]/30 text-[#24A1DE] text-center py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2">
+                                <i className="fab fa-telegram text-lg"></i> Ambil Kode via Telegram
                             </a>
                         </div>
                         <button onClick={onClose} className="absolute top-3 right-3 text-zinc-600 hover:text-zinc-300"><i className="fas fa-times"></i></button>
@@ -148,14 +161,16 @@
 
         const App = () => {
             const [input, setInput] = useState('');
-            const [messages, setMessages] = useState([{ role: 'assistant', content: 'Halo! Silakan login untuk akses penuh.' }]);
+            const [messages, setMessages] = useState([{ role: 'assistant', content: 'Halo! Selamat datang di Unlimited AI.' }]);
             const [isLoading, setIsLoading] = useState(false);
             const [isLoggedIn, setIsLoggedIn] = useState(false);
             const [showLogin, setShowLogin] = useState(false);
             const [chatCount, setChatCount] = useState(0);
+            
             const messagesEndRef = useRef(null);
             const textareaRef = useRef(null);
 
+            // Load Session
             useEffect(() => {
                 const savedLogin = localStorage.getItem('unlimited_login') === 'true';
                 const savedCount = parseInt(localStorage.getItem('unlimited_count') || '0');
@@ -168,9 +183,11 @@
 
             const handleSend = async () => {
                 if (!input.trim() || isLoading) return;
+                
+                // Cek Login / Limit Chat
                 if (!isLoggedIn) {
                     if (chatCount >= MAX_FREE_CHATS) {
-                        setMessages(prev => [...prev, { role: 'assistant', content: 'Limit chat habis. Silakan masukkan kode akses.', isSystem: true }]);
+                        setMessages(prev => [...prev, { role: 'assistant', content: '🔒 Limit chat gratis habis. Silakan ambil kode akses gratis di Telegram kami.', isSystem: true }]);
                         setShowLogin(true);
                         return;
                     }
@@ -202,13 +219,13 @@
                         </div>
                         <div className="flex items-center gap-3">
                             {!isLoggedIn && <div className="text-xs font-mono text-zinc-500 bg-zinc-800/50 px-2 py-1 rounded border border-zinc-700">{chatCount}/{MAX_FREE_CHATS}</div>}
-                            <button onClick={() => isLoggedIn ? (confirm('Logout?') && (localStorage.removeItem('unlimited_login'), setIsLoggedIn(false), setChatCount(0))) : setShowLogin(true)} className="w-8 h-8 rounded-full bg-subtle border border-zinc-700 flex items-center justify-center text-zinc-400">
+                            <button onClick={() => isLoggedIn ? (confirm('Yakin ingin keluar?') && (localStorage.removeItem('unlimited_login'), setIsLoggedIn(false), setChatCount(0))) : setShowLogin(true)} className="w-8 h-8 rounded-full bg-subtle border border-zinc-700 flex items-center justify-center text-zinc-400">
                                 <i className={`fas ${isLoggedIn ? 'fa-check text-brand' : 'fa-lock'}`}></i>
                             </button>
                         </div>
                     </div>
                     
-                    <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} onLogin={() => {setIsLoggedIn(true); localStorage.setItem('unlimited_login', 'true'); setMessages(p => [...p, { role: 'assistant', content: 'Akses VIP Aktif!', isSystem: true }])}} />
+                    <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} onLogin={() => {setIsLoggedIn(true); localStorage.setItem('unlimited_login', 'true'); setMessages(p => [...p, { role: 'assistant', content: '✅ Akses Member Diterima! Selamat menikmati chat unlimited.', isSystem: true }])}} />
 
                     <div className="flex-1 overflow-y-auto no-scrollbar pt-20 pb-4 px-4 md:px-0">
                         <div className="max-w-2xl mx-auto w-full pb-32">
