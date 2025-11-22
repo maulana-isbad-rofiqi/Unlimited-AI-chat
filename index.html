@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Unlimited AI - Omni</title>
+    <title>Unlimited AI - Intelligence</title>
     
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
@@ -12,48 +12,43 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
 
     <style>
-        /* Obsidian Theme */
-        :root { --bg-dark: #000000; --surface: #0f0f11; --primary: #3b82f6; --accent: #8b5cf6; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: #e4e4e7; overflow: hidden; }
+        /* Theme Configuration */
+        :root { --bg-dark: #020203; --surface: #101012; --brand: #3b82f6; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--bg-dark); color: #e4e4e7; overflow: hidden; }
         
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        .fade-in { animation: fadeIn 0.4s ease-out forwards; opacity: 0; transform: translateY(10px); }
-        @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
+        .fade-up { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         
         .typing-dot { animation: typing 1.4s infinite ease-in-out both; }
         .typing-dot:nth-child(1) { animation-delay: -0.32s; }
         .typing-dot:nth-child(2) { animation-delay: -0.16s; }
         @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
 
-        /* Glassmorphism Advanced */
+        /* Glass Aesthetics */
         .glass {
-            background: rgba(15, 15, 17, 0.75);
+            background: rgba(16, 16, 18, 0.8);
             backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .input-container {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(30px);
             border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
         }
-        .glass-input {
-            background: rgba(20, 20, 25, 0.85);
-            backdrop-filter: blur(25px);
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        
-        /* Toggle Switch */
-        .toggle-checkbox:checked { right: 0; border-color: #3b82f6; }
-        .toggle-checkbox:checked + .toggle-label { background-color: #3b82f6; }
     </style>
 
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    colors: { brand: '#3b82f6', brandDark: '#2563eb', dark: '#000000', surface: '#0f0f11', border: '#27272a' },
-                    animation: { 'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite' }
+                    colors: { brand: '#3b82f6', brandGlow: '#60a5fa', dark: '#020203', surface: '#101012', border: '#27272a' }
                 }
             }
         }
@@ -70,44 +65,45 @@
         const TELEGRAM_BOT_USERNAME = "UnlimitedAIAccessBot"; 
         const MAX_FREE_CHATS = 3;
 
-        // --- WEB SEARCH ENGINE (DuckDuckGo Lite Scraper via Proxy) ---
+        // --- CLEANER WEB SEARCH (Agar AI tidak bingung) ---
         const searchWeb = async (query) => {
             try {
-                // Menggunakan Proxy untuk bypass CORS DuckDuckGo
-                const PROXY_URL = "https://api.codetabs.com/v1/proxy?quest=";
-                const SEARCH_URL = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`;
+                // Gunakan Proxy yang lebih stabil
+                const PROXY = "https://api.codetabs.com/v1/proxy?quest=";
+                const TARGET = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`;
                 
-                const response = await axios.get(PROXY_URL + SEARCH_URL);
-                const html = response.data;
-
-                // Simple HTML Parser (tanpa library berat)
+                const { data } = await axios.get(PROXY + TARGET);
                 const parser = new DOMParser();
-                const doc = parser.parseFromString(html, "text/html");
+                const doc = parser.parseFromString(data, "text/html");
                 
-                // Ambil snippets hasil pencarian
-                const results = [];
+                // Ambil 3 hasil teratas yang berkualitas
+                let results = [];
                 const rows = doc.querySelectorAll('tr');
-                
                 let count = 0;
+                
                 rows.forEach(row => {
-                    if (count >= 4) return; // Ambil 4 hasil teratas
-                    const link = row.querySelector('.result-link');
-                    const snippet = row.querySelector('.result-snippet');
+                    if (count >= 3) return;
+                    const linkTag = row.querySelector('.result-link');
+                    const snippetTag = row.querySelector('.result-snippet');
                     
-                    if (link && snippet) {
-                        results.push(`Title: ${link.innerText}\nSnippet: ${snippet.innerText}`);
-                        count++;
+                    if (linkTag && snippetTag) {
+                        const title = linkTag.innerText.trim();
+                        const snippet = snippetTag.innerText.trim();
+                        // Filter hasil kosong/sampah
+                        if(title && snippet && snippet.length > 20) {
+                            results.push(`[Sumber ${count+1}]: ${title}\nInfo: ${snippet}`);
+                            count++;
+                        }
                     }
                 });
 
-                return results.join('\n\n');
+                return results.length > 0 ? results.join('\n---\n') : null;
             } catch (e) {
-                console.error("Search failed", e);
-                return null; // Gagal search
+                return null;
             }
         };
 
-        // --- SMART API HANDLER ---
+        // --- THE BRAIN (Logic Upgrade) ---
         const unlimitedai = async (currentQuestion, sessionId, chatHistory, useWebSearch) => {
             try {
                 if (!currentQuestion) throw new Error('Pertanyaan kosong.');
@@ -116,27 +112,35 @@
                 const { data: tokenData } = await axios.get(`${BACKEND_URL}/token`);
                 if (!tokenData || !tokenData.token) throw new Error("Koneksi server gagal.");
 
-                let systemContent = "Kamu adalah Unlimited AI, asisten yang sangat cerdas, kritis, dan membantu. Jawablah dalam Bahasa Indonesia yang natural dan profesional.";
-                let userQuery = currentQuestion;
+                // --- UPGRADE 1: System Prompt yang "Galak" & Tegas ---
+                let systemContent = `
+INSTRUKSI UTAMA:
+1. Kamu adalah AI Cerdas. Jawablah dengan TEPAT, PADAT, dan AKURAT.
+2. BERPIKIRLAH LANGKAH DEMI LANGKAH (Chain of Thought) sebelum menjawab.
+3. Jangan bertele-tele. Langsung ke inti jawaban.
+4. Jika ditanya coding, berikan kode yang valid dan sudah diperbaiki.
+5. Jangan mengarang (Halusinasi). Jika tidak tahu fakta spesifik, katakan tidak tahu.
+6. Gunakan Bahasa Indonesia yang luwes, profesional, dan mudah dimengerti.
+                `.trim();
 
-                // --- LOGIKA INTERNET ACCESS ---
                 if (useWebSearch) {
                     const searchResults = await searchWeb(currentQuestion);
                     if (searchResults) {
-                        // Inject hasil search ke System Prompt
-                        systemContent += `\n\n[DATA DARI INTERNET TERKINI]:\n${searchResults}\n\nINSTRUKSI: Gunakan data di atas untuk menjawab pertanyaan user secara akurat. Jika data menyebutkan waktu/tanggal, gunakan itu sebagai referensi terkini.`;
+                        systemContent += `\n\nDATA FAKTA DARI INTERNET:\n${searchResults}\n\nPENTING: Gunakan data di atas untuk menjawab pertanyaan user. Gabungkan pengetahuanmu dengan data ini.`;
                     }
                 }
 
-                const systemInstruction = {
+                const systemMessage = {
                     id: crypto.randomUUID(),
-                    role: 'system', // Role system untuk 'otak'
+                    role: 'system',
                     content: systemContent,
                     parts: [{ type: 'text', text: systemContent }],
                     createdAt: new Date().toISOString()
                 };
 
-                const contextMessages = chatHistory
+                // Filter history agar tidak terlalu panjang (Mencegah AI pusing/lupa)
+                // Ambil 6 pesan terakhir saja
+                const recentHistory = chatHistory.slice(-6)
                     .filter(m => !m.isError && !m.isSystem)
                     .map(m => ({
                         id: crypto.randomUUID(),
@@ -146,40 +150,46 @@
                         createdAt: new Date().toISOString()
                     }));
 
-                const newMessagePayload = {
+                const userMessage = {
                     id: crypto.randomUUID(),
                     createdAt: new Date().toISOString(),
                     role: 'user',
-                    content: userQuery,
-                    parts: [{ type: 'text', text: userQuery }]
+                    content: currentQuestion,
+                    parts: [{ type: 'text', text: currentQuestion }]
                 };
 
-                const fullPayload = [systemInstruction, ...contextMessages, newMessagePayload];
+                // Urutan Payload: System -> History -> Pesan Baru
+                const fullPayload = [systemMessage, ...recentHistory, userMessage];
 
                 const { data } = await axios.post(`${BACKEND_URL}/chat`, {
                     messages: fullPayload, 
                     id: sessionId,
-                    selectedChatModel: 'gpt-4o', // Paksa model pintar
+                    // --- UPGRADE 2: Paksa Model Terbaik ---
+                    // Kita coba request 'gpt-4o' atau 'claude-3-5-sonnet' secara eksplisit
+                    // Jika API mendukung, ini akan jauh lebih pintar
+                    selectedChatModel: 'gpt-4o', 
                     selectedCharacter: null,
                     selectedStory: null
                 }, { headers: { 'x-api-token': tokenData.token } });
                 
+                // Parsing yang lebih aman
                 if (typeof data === 'string') {
                     const resultLine = data.split('\n').find(line => line.startsWith('0:'));
                     if (resultLine) {
                         let cleanText = resultLine.slice(2); 
                         if (cleanText.startsWith('"') && cleanText.endsWith('"')) cleanText = cleanText.slice(1, -1);
+                        // Fix unicode escape chars if any
                         try { return JSON.parse(`"${cleanText}"`); } catch (e) { return cleanText; }
                     }
                 } 
                 return typeof data === 'object' ? JSON.stringify(data) : data;
 
             } catch (error) {
-                throw new Error(error.response?.data?.error || "AI sedang sibuk.");
+                throw new Error(error.response?.data?.error || "Maaf, saya sedang overload. Coba lagi.");
             }
         };
 
-        // --- COMPONENTS ---
+        // --- UI COMPONENTS ---
 
         const LoginModal = ({ isOpen, onClose, onLogin }) => {
             const [code, setCode] = useState('');
@@ -193,24 +203,23 @@
                     const response = await axios.get(GOOGLE_SCRIPT_URL);
                     if ((response.data.validCodes || []).includes(code) || code === "ITSBAD") {
                         onLogin(); onClose(); setCode('');
-                    } else setError('Kode tidak valid.');
-                } catch (err) { setError('Gagal verifikasi.'); } finally { setLoading(false); }
+                    } else setError('Kode salah/hangus.');
+                } catch (err) { setError('Gagal koneksi.'); } finally { setLoading(false); }
             };
 
             if (!isOpen) return null;
             return (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
-                    <div className="w-full max-w-sm bg-surface border border-border rounded-2xl p-6 relative overflow-hidden shadow-2xl">
+                    <div className="w-full max-w-sm bg-surface border border-border rounded-2xl p-6 shadow-2xl">
                         <div className="text-center mb-6">
-                            <div className="w-12 h-12 mx-auto bg-dark border border-border rounded-full flex items-center justify-center mb-3"><i className="fas fa-lock text-brand"></i></div>
                             <h2 className="text-xl font-bold text-white">Akses Premium</h2>
-                            <p className="text-sm text-zinc-400 mt-1">Batas chat gratis tercapai.</p>
+                            <p className="text-sm text-zinc-400">Limit gratis tercapai.</p>
                         </div>
                         <div className="space-y-3">
                             <input type="text" value={code} onChange={(e) => setCode(e.target.value.trim())} placeholder="KEY-XXXX" className="w-full bg-dark border border-border rounded-xl px-4 py-3 text-white text-center font-mono focus:border-brand focus:outline-none uppercase" />
                             {error && <p className="text-red-400 text-xs text-center">{error}</p>}
-                            <button onClick={handleSubmit} disabled={loading} className="w-full bg-brand hover:bg-brandDark text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50">{loading ? <i className="fas fa-spinner fa-spin"></i> : "Buka Akses"}</button>
-                            <a href={`https://t.me/${TELEGRAM_BOT_USERNAME}?start=web`} target="_blank" className="flex items-center justify-center gap-2 w-full bg-zinc-800/50 hover:bg-zinc-800 text-zinc-300 py-3 rounded-xl text-sm transition-all"><i className="fab fa-telegram"></i> Ambil Kode Gratis</a>
+                            <button onClick={handleSubmit} disabled={loading} className="w-full bg-brand hover:bg-blue-600 text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50">{loading ? <i className="fas fa-spinner fa-spin"></i> : "Buka Akses"}</button>
+                            <a href={`https://t.me/${TELEGRAM_BOT_USERNAME}?start=web`} target="_blank" className="block text-center text-sm text-brand hover:text-white mt-4">Dapatkan Kode Gratis</a>
                         </div>
                     </div>
                 </div>
@@ -221,13 +230,12 @@
             const [input, setInput] = useState('');
             const [messages, setMessages] = useState([]);
             const [isLoading, setIsLoading] = useState(false);
-            const [statusText, setStatusText] = useState(''); // Untuk status "Searching..."
+            const [statusText, setStatusText] = useState('');
             const [isLoggedIn, setIsLoggedIn] = useState(false);
             const [showLogin, setShowLogin] = useState(false);
             const [chatCount, setChatCount] = useState(0);
             const [sessionId] = useState(() => crypto.randomUUID());
-            const [webSearchEnabled, setWebSearchEnabled] = useState(false); // State tombol Internet
-
+            const [webSearchEnabled, setWebSearchEnabled] = useState(false);
             const messagesEndRef = useRef(null);
             const textareaRef = useRef(null);
 
@@ -236,7 +244,7 @@
                 const savedCount = parseInt(localStorage.getItem('unlimited_count') || '0');
                 setIsLoggedIn(savedLogin);
                 setChatCount(savedCount);
-                setMessages([{ role: 'assistant', content: 'Halo! Sistem Omni siap. Aktifkan bola dunia 🌐 untuk akses internet.' }]);
+                setMessages([{ role: 'assistant', content: 'Halo! Mode Cerdas aktif. Aktifkan 🌐 untuk data internet.' }]);
             }, []);
 
             const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -244,9 +252,8 @@
 
             const handleSend = async () => {
                 if (!input.trim() || isLoading) return;
-                
+                if (!isLoggedIn && chatCount >= MAX_FREE_CHATS) { setShowLogin(true); return; }
                 if (!isLoggedIn) {
-                    if (chatCount >= MAX_FREE_CHATS) { setShowLogin(true); return; }
                     const newCount = chatCount + 1;
                     setChatCount(newCount);
                     localStorage.setItem('unlimited_count', newCount.toString());
@@ -256,9 +263,8 @@
                 setMessages(p => [...p, { role: 'user', content: q }]);
                 setIsLoading(true);
                 
-                // Set Status
-                if (webSearchEnabled) setStatusText("Mencari di internet...");
-                else setStatusText("Sedang berpikir...");
+                if (webSearchEnabled) setStatusText("Menganalisis data internet...");
+                else setStatusText("Berpikir mendalam...");
 
                 try {
                     const response = await unlimitedai(q, sessionId, messages, webSearchEnabled);
@@ -274,19 +280,14 @@
             return (
                 <div className="flex flex-col h-[100dvh] relative bg-dark">
                     {/* HEADER */}
-                    <div className="glass fixed top-0 w-full h-16 z-50 flex items-center justify-between px-4 md:px-6 shadow-lg">
+                    <div className="glass fixed top-0 w-full h-16 z-50 flex items-center justify-between px-4 shadow-lg">
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand to-blue-600 flex items-center justify-center shadow-lg shadow-brand/20">
-                                <i className="fas fa-infinity text-white text-sm"></i>
-                            </div>
-                            <div>
-                                <h1 className="font-bold text-lg tracking-tight text-white leading-none">Unlimited AI</h1>
-                                <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">Omni Model</span>
-                            </div>
+                            <div className="w-8 h-8 rounded bg-brand flex items-center justify-center text-white font-bold shadow-lg shadow-brand/20"><i className="fas fa-brain"></i></div>
+                            <div><h1 className="font-bold text-white tracking-tight">Unlimited AI</h1><span className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold">Intelligence Core</span></div>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <button onClick={() => setMessages([])} className="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center text-zinc-400 hover:text-white transition-all"><i className="fas fa-trash-alt text-xs"></i></button>
-                            <button onClick={() => isLoggedIn ? (confirm('Logout?') && (localStorage.removeItem('unlimited_login'), setIsLoggedIn(false), setChatCount(0))) : setShowLogin(true)} className={`h-8 px-3 rounded-full border flex items-center gap-2 text-xs font-bold transition-all ${isLoggedIn ? 'bg-brand/10 border-brand/30 text-brand' : 'bg-surface border-border text-zinc-400'}`}>{isLoggedIn ? "PRO" : "LOGIN"}</button>
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => setMessages([])} className="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center text-zinc-400 hover:text-white"><i className="fas fa-trash text-xs"></i></button>
+                            <button onClick={() => isLoggedIn ? (confirm('Keluar?') && (localStorage.removeItem('unlimited_login'), setIsLoggedIn(false), setChatCount(0))) : setShowLogin(true)} className={`px-3 py-1.5 rounded-full text-xs font-bold border ${isLoggedIn ? 'bg-brand/10 border-brand text-brand' : 'bg-surface border-border text-zinc-400'}`}>{isLoggedIn ? "PRO" : "LOGIN"}</button>
                         </div>
                     </div>
 
@@ -296,61 +297,32 @@
                     <div className="flex-1 overflow-y-auto no-scrollbar pt-20 pb-28 px-4">
                         <div className="max-w-2xl mx-auto w-full space-y-6">
                             {messages.map((m, i) => (
-                                <div key={i} className={`fade-in flex w-full ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                <div key={i} className={`fade-up flex w-full ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                     {m.role !== 'user' && <div className="w-8 h-8 rounded-full bg-surface border border-border flex-shrink-0 flex items-center justify-center mr-3 mt-1"><i className="fas fa-robot text-zinc-500 text-xs"></i></div>}
-                                    <div className={`max-w-[85%] px-5 py-3 text-[15px] leading-relaxed ${m.role === 'user' ? 'bg-brand text-white rounded-2xl rounded-tr-sm' : m.isError ? 'bg-red-900/20 border border-red-500/30 text-red-200 rounded-2xl' : 'bg-surface border border-border text-zinc-300 rounded-2xl rounded-tl-sm'}`}>
+                                    <div className={`max-w-[90%] px-5 py-3.5 text-[15px] leading-relaxed shadow-sm ${m.role === 'user' ? 'bg-brand text-white rounded-2xl rounded-tr-sm' : m.isError ? 'bg-red-900/20 border border-red-500/30 text-red-200 rounded-2xl' : 'bg-surface border border-border text-zinc-200 rounded-2xl rounded-tl-sm'}`}>
                                         <div className="whitespace-pre-wrap">{m.content}</div>
                                     </div>
                                 </div>
                             ))}
-                            
-                            {isLoading && (
-                                <div className="fade-in flex items-center gap-3 ml-1">
-                                    <div className="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center"><i className={`fas ${webSearchEnabled ? 'fa-globe text-brand animate-pulse' : 'fa-bolt text-zinc-500'} text-xs`}></i></div>
-                                    <div className="text-xs text-zinc-500 font-mono animate-pulse">{statusText}</div>
-                                </div>
-                            )}
+                            {isLoading && <div className="fade-up flex items-center gap-3 ml-1">
+                                <div className="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center"><i className={`fas ${webSearchEnabled ? 'fa-globe text-brand animate-pulse' : 'fa-bolt text-zinc-500'} text-xs`}></i></div>
+                                <div className="text-xs text-zinc-500 font-mono animate-pulse">{statusText}</div>
+                            </div>}
                             <div ref={messagesEndRef} />
                         </div>
                     </div>
 
                     {/* INPUT AREA */}
-                    <div className="glass-input fixed bottom-0 w-full pb-6 pt-4 px-4 z-40">
+                    <div className="fixed bottom-6 left-4 right-4 z-40">
                         <div className="max-w-2xl mx-auto relative">
-                            <div className="bg-surface border border-border rounded-[24px] p-1.5 flex items-end gap-2 transition-all focus-within:border-brand/50 focus-within:ring-1 focus-within:ring-brand/20 shadow-2xl">
-                                
-                                {/* Internet Toggle Button */}
-                                <button 
-                                    onClick={() => setWebSearchEnabled(!webSearchEnabled)}
-                                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all mb-0.5 ml-0.5 ${webSearchEnabled ? 'bg-brand text-white shadow-lg shadow-brand/30' : 'bg-dark text-zinc-600 hover:text-zinc-400'}`}
-                                    title={webSearchEnabled ? "Internet Aktif" : "Mode Offline"}
-                                >
+                            <div className="input-container rounded-[24px] p-1.5 flex items-end gap-2 transition-all focus-within:border-brand/50">
+                                <button onClick={() => setWebSearchEnabled(!webSearchEnabled)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all mb-0.5 ml-0.5 ${webSearchEnabled ? 'bg-brand text-white shadow-lg shadow-brand/30' : 'bg-surface text-zinc-500 hover:text-zinc-300'}`} title="Akses Internet">
                                     <i className="fas fa-globe"></i>
                                 </button>
-
-                                <textarea
-                                    value={input}
-                                    onChange={e => setInput(e.target.value)}
-                                    onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                                    placeholder={webSearchEnabled ? "Tanya internet..." : "Tanya sesuatu..."}
-                                    className="w-full bg-transparent text-white placeholder-zinc-600 px-3 py-2.5 focus:outline-none resize-none max-h-[100px] text-[15px]"
-                                    rows={1}
-                                    style={{minHeight: '44px'}}
-                                />
-                                
-                                <button 
-                                    onClick={handleSend}
-                                    disabled={!input.trim() || isLoading}
-                                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all mb-0.5 mr-0.5 ${input.trim() && !isLoading ? 'bg-white text-black hover:scale-105' : 'bg-zinc-800 text-zinc-600'}`}
-                                >
-                                    <i className="fas fa-arrow-up"></i>
-                                </button>
+                                <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder={webSearchEnabled ? "Cari di internet..." : "Tanya sesuatu..."} className="w-full bg-transparent text-white placeholder-zinc-600 px-3 py-2.5 focus:outline-none resize-none max-h-[120px] text-[15px]" rows={1} style={{minHeight: '44px'}} />
+                                <button onClick={handleSend} disabled={!input.trim() || isLoading} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all mb-0.5 mr-0.5 ${input.trim() && !isLoading ? 'bg-white text-black hover:scale-105' : 'bg-zinc-800 text-zinc-600'}`}><i className="fas fa-arrow-up"></i></button>
                             </div>
-                            <div className="text-center mt-3 select-none opacity-50 hover:opacity-100 transition-opacity">
-                                <p className="text-[10px] font-mono tracking-widest text-zinc-600 uppercase">
-                                    DESIGN BY <span className="text-zinc-400 font-bold">【﻿ 𝕀𝕥𝕤𝕓𝕒𝕕 】</span>
-                                </p>
-                            </div>
+                            <div className="text-center mt-3 select-none opacity-40"><p className="text-[10px] font-mono tracking-widest text-zinc-600 uppercase">SYSTEM BY <span className="text-zinc-400 font-bold">【﻿ 𝕀𝕥𝕤𝕓𝕒𝕕 】</span></p></div>
                         </div>
                     </div>
                 </div>
