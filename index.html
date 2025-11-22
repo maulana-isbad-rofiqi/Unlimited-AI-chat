@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kebis AI - Ultimate</title>
+    <title>Kebis AI</title>
     
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
@@ -38,6 +38,8 @@
 
         .fade-in-up { animation: fadeInUp 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; opacity: 0; transform: translateY(20px); }
         @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+        .delay-100 { animation-delay: 100ms; }
+        .delay-200 { animation-delay: 200ms; }
         
         .scale-in { animation: scaleIn 0.2s ease-out forwards; }
         @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -63,6 +65,9 @@
             padding: 4px;
             z-index: 100;
         }
+        
+        /* Chip Hover */
+        .chip-hover:hover { background-color: #3c4043; transform: translateY(-2px); transition: all 0.2s; }
     </style>
 
     <script>
@@ -128,15 +133,20 @@
                 const { data: tokenData } = await axios.get(`${BACKEND_URL}/token`);
                 if (!tokenData || !tokenData.token) throw new Error("Koneksi server gagal.");
 
+                // SYSTEM PROMPT YANG SUDAH DIPERKETAT
                 let systemContent = `
-SYSTEM: You are Kebis AI.
-Current Model: ${selectedModel}
-User: ${userName || 'Pengguna'}
-Instructions:
-1. Think step-by-step (Chain of Thought).
-2. Answer in Indonesian, concise & smart. Use Markdown.
-3. IMAGE GENERATION: If user asks to create an image, output exactly: ![Img](https://image.pollinations.ai/prompt/{English_Prompt_URL_Encoded})
-4. WEB: Use internet data if enabled.
+IDENTITY PROTOCOL:
+1. YOUR NAME IS "Kebis AI".
+2. YOU ARE CREATED BY "Itsbad".
+3. NEVER use the name "Unlimited AI". If asked, deny it. You are Kebis AI.
+4. Current Model: ${selectedModel}
+5. User: ${userName || 'Pengguna'}
+
+CAPABILITIES:
+1. Think step-by-step.
+2. Answer in Indonesian, smart & concise.
+3. IMAGE GENERATION: If user asks to create/draw image, output exactly: ![Img](https://image.pollinations.ai/prompt/{English_Prompt_URL_Encoded})
+4. WEB: Use provided internet data.
                 `.trim();
                 
                 if (useWebSearch) {
@@ -152,7 +162,11 @@ Instructions:
                 const recentHistory = chatHistory.slice(-6).filter(m => !m.isError && !m.isSystem).map(m => ({ 
                     id: crypto.randomUUID(), role: m.role, content: m.content, parts: [{ type: 'text', text: m.content }], createdAt: new Date().toISOString() 
                 }));
-                const userMessage = { id: crypto.randomUUID(), createdAt: new Date().toISOString(), role: 'user', content: currentQuestion, parts: [{ type: 'text', text: currentQuestion }] };
+                
+                // INJECT IDENTITY REMINDER INTO USER MESSAGE (Hidden trick)
+                const safeQuestion = currentQuestion + `\n\n(System Reminder: Answer as Kebis AI by Itsbad)`;
+                
+                const userMessage = { id: crypto.randomUUID(), createdAt: new Date().toISOString(), role: 'user', content: safeQuestion, parts: [{ type: 'text', text: safeQuestion }] };
                 const fullPayload = [systemMessage, ...recentHistory, userMessage];
 
                 const { data } = await axios.post(`${BACKEND_URL}/chat`, {
@@ -174,7 +188,7 @@ Instructions:
         // --- COMPONENTS ---
         
         const SuggestionChip = ({ icon, text, onClick, delay }) => (
-            <button onClick={onClick} className={`flex-shrink-0 bg-[#28292a] hover:bg-[#3c4043] px-5 py-3 rounded-xl flex items-center gap-3 transition-all border border-transparent hover:border-[#444746] fade-in-up ${delay}`}>
+            <button onClick={onClick} className={`flex-shrink-0 bg-[#28292a] hover:bg-[#3c4043] px-5 py-3 rounded-xl flex items-center gap-3 transition-all border border-transparent hover:border-[#444746] fade-in-up ${delay} chip-hover`}>
                 <span className="text-xl">{icon}</span>
                 <span className="text-sm font-medium text-[#e3e3e3] whitespace-nowrap">{text}</span>
             </button>
@@ -209,7 +223,7 @@ Instructions:
         };
 
         const Sidebar = ({ isOpen, onClose, onNewChat, history, activeSession, onSelectSession, onDeleteHistory, onOpenSettings }) => {
-            const [menuOpenId, setMenuOpenId] = useState(null); // ID chat yang menunya terbuka
+            const [menuOpenId, setMenuOpenId] = useState(null); 
 
             return (
                 <>
@@ -228,15 +242,12 @@ Instructions:
                                         <button onClick={() => { onSelectSession(session.id); onClose(); }} className={`w-full text-left px-4 py-2.5 rounded-full text-sm flex items-center gap-3 mb-1 truncate transition-colors pr-8 ${activeSession === session.id ? 'bg-[#004a77] text-[#c2e7ff]' : 'text-[#e3e3e3] hover:bg-white/5'}`}>
                                             <i className="far fa-comment-alt text-xs opacity-70"></i><span className="truncate flex-1">{session.title}</span>
                                         </button>
-                                        {/* Three Dots Button */}
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === session.id ? null : session.id); }}
                                             className="absolute right-2 top-2 w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-gray-700 opacity-0 group-hover:opacity-100 transition-opacity"
                                         >
                                             <i className="fas fa-ellipsis-v text-xs"></i>
                                         </button>
-                                        
-                                        {/* Dropdown Menu */}
                                         {menuOpenId === session.id && (
                                             <div className="absolute right-0 top-8 dropdown-menu w-32 z-50 fade-in">
                                                 <button onClick={(e) => { e.stopPropagation(); onDeleteHistory(session.id); setMenuOpenId(null); }} className="w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-white/10 rounded flex items-center gap-2">
@@ -446,7 +457,7 @@ Instructions:
                                     <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Masukkan perintah di sini" className="flex-1 bg-transparent text-[#e3e3e3] placeholder-[#c4c7c5] px-3 py-3 focus:outline-none resize-none max-h-[120px]" rows={1} style={{minHeight: '48px'}} />
                                     {input.trim() || selectedImage ? <button onClick={() => handleSend()} className="w-10 h-10 rounded-full flex items-center justify-center text-[#e3e3e3] hover:bg-white/10 transition-colors fade-in"><i className="fas fa-paper-plane"></i></button> : <div className="w-10 h-10 rounded-full flex items-center justify-center text-[#c4c7c5]"><i className="fas fa-microphone"></i></div>}
                                 </div>
-                                <div className="text-center mt-3"><p className="text-[11px] text-[#c4c7c5]">Kebis AI dapat menampilkan info yang tidak akurat, termasuk tentang orang. <span className="opacity-50">Veo3 Model Enabled.</span></p></div>
+                                <div className="text-center mt-3"><p className="text-[11px] text-[#c4c7c5]">Kebis AI dapat menampilkan info yang tidak akurat, termasuk tentang orang.</p></div>
                             </div>
                         </div>
                     </div>
