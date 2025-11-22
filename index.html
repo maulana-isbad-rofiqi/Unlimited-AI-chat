@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Unlimited AI - Super Smart</title>
+    <title>Unlimited AI - Omni</title>
     
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
@@ -12,42 +12,48 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
 
     <style>
-        /* Base Styles */
-        :root { --bg-dark: #050505; --accent: #6366f1; }
-        body { font-family: 'Outfit', sans-serif; background-color: var(--bg-dark); color: #e4e4e7; overflow: hidden; }
+        /* Obsidian Theme */
+        :root { --bg-dark: #000000; --surface: #0f0f11; --primary: #3b82f6; --accent: #8b5cf6; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: #e4e4e7; overflow: hidden; }
+        
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .fade-enter { animation: fadeEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-        @keyframes fadeEnter { from { opacity: 0; transform: translateY(15px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; opacity: 0; transform: translateY(10px); }
+        @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
+        
         .typing-dot { animation: typing 1.4s infinite ease-in-out both; }
         .typing-dot:nth-child(1) { animation-delay: -0.32s; }
         .typing-dot:nth-child(2) { animation-delay: -0.16s; }
         @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
-        .glass-panel {
-            background: rgba(20, 20, 23, 0.6);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+
+        /* Glassmorphism Advanced */
+        .glass {
+            background: rgba(15, 15, 17, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
-        .aurora-bg {
-            position: absolute;
-            width: 300px; height: 300px;
-            background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, rgba(0,0,0,0) 70%);
-            filter: blur(60px);
-            z-index: -1;
-            pointer-events: none;
+        .glass-input {
+            background: rgba(20, 20, 25, 0.85);
+            backdrop-filter: blur(25px);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
         }
+        
+        /* Toggle Switch */
+        .toggle-checkbox:checked { right: 0; border-color: #3b82f6; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #3b82f6; }
     </style>
 
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    colors: { brand: '#6366f1', brandGlow: '#818cf8', dark: '#050505', surface: '#121214', border: '#27272a' },
-                    boxShadow: { 'glow': '0 0 20px rgba(99, 102, 241, 0.15)', 'glow-strong': '0 0 30px rgba(99, 102, 241, 0.3)' }
+                    colors: { brand: '#3b82f6', brandDark: '#2563eb', dark: '#000000', surface: '#0f0f11', border: '#27272a' },
+                    animation: { 'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite' }
                 }
             }
         }
@@ -64,8 +70,45 @@
         const TELEGRAM_BOT_USERNAME = "UnlimitedAIAccessBot"; 
         const MAX_FREE_CHATS = 3;
 
-        // --- SUPER SMART API HANDLER ---
-        const unlimitedai = async (currentQuestion, sessionId, chatHistory) => {
+        // --- WEB SEARCH ENGINE (DuckDuckGo Lite Scraper via Proxy) ---
+        const searchWeb = async (query) => {
+            try {
+                // Menggunakan Proxy untuk bypass CORS DuckDuckGo
+                const PROXY_URL = "https://api.codetabs.com/v1/proxy?quest=";
+                const SEARCH_URL = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`;
+                
+                const response = await axios.get(PROXY_URL + SEARCH_URL);
+                const html = response.data;
+
+                // Simple HTML Parser (tanpa library berat)
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, "text/html");
+                
+                // Ambil snippets hasil pencarian
+                const results = [];
+                const rows = doc.querySelectorAll('tr');
+                
+                let count = 0;
+                rows.forEach(row => {
+                    if (count >= 4) return; // Ambil 4 hasil teratas
+                    const link = row.querySelector('.result-link');
+                    const snippet = row.querySelector('.result-snippet');
+                    
+                    if (link && snippet) {
+                        results.push(`Title: ${link.innerText}\nSnippet: ${snippet.innerText}`);
+                        count++;
+                    }
+                });
+
+                return results.join('\n\n');
+            } catch (e) {
+                console.error("Search failed", e);
+                return null; // Gagal search
+            }
+        };
+
+        // --- SMART API HANDLER ---
+        const unlimitedai = async (currentQuestion, sessionId, chatHistory, useWebSearch) => {
             try {
                 if (!currentQuestion) throw new Error('Pertanyaan kosong.');
                 const BACKEND_URL = "/api"; 
@@ -73,22 +116,31 @@
                 const { data: tokenData } = await axios.get(`${BACKEND_URL}/token`);
                 if (!tokenData || !tokenData.token) throw new Error("Koneksi server gagal.");
 
-                // --- TRIK 1: SYSTEM PROMPT (Menanamkan Kepintaran) ---
-                // Kita buat pesan rahasia di awal yang tidak dilihat user, tapi dibaca AI
+                let systemContent = "Kamu adalah Unlimited AI, asisten yang sangat cerdas, kritis, dan membantu. Jawablah dalam Bahasa Indonesia yang natural dan profesional.";
+                let userQuery = currentQuestion;
+
+                // --- LOGIKA INTERNET ACCESS ---
+                if (useWebSearch) {
+                    const searchResults = await searchWeb(currentQuestion);
+                    if (searchResults) {
+                        // Inject hasil search ke System Prompt
+                        systemContent += `\n\n[DATA DARI INTERNET TERKINI]:\n${searchResults}\n\nINSTRUKSI: Gunakan data di atas untuk menjawab pertanyaan user secara akurat. Jika data menyebutkan waktu/tanggal, gunakan itu sebagai referensi terkini.`;
+                    }
+                }
+
                 const systemInstruction = {
                     id: crypto.randomUUID(),
-                    role: 'system',
-                    content: "Kamu adalah AI Assistant yang sangat cerdas, logis, dan mendalam pengetahuannya. Jawablah dengan tepat, akurat, dan gaya bahasa yang natural (seperti manusia). SELALU ingat konteks percakapan sebelumnya. Jika ditanya coding, berikan kode terbaik.",
-                    parts: [{ type: 'text', text: "System Instruction: Be smart, logical, and context-aware." }],
+                    role: 'system', // Role system untuk 'otak'
+                    content: systemContent,
+                    parts: [{ type: 'text', text: systemContent }],
                     createdAt: new Date().toISOString()
                 };
 
-                // --- TRIK 2: FORMAT HISTORY YANG LEBIH BERSIH ---
                 const contextMessages = chatHistory
                     .filter(m => !m.isError && !m.isSystem)
                     .map(m => ({
                         id: crypto.randomUUID(),
-                        role: m.role, // 'user' atau 'assistant'
+                        role: m.role,
                         content: m.content,
                         parts: [{ type: 'text', text: m.content }],
                         createdAt: new Date().toISOString()
@@ -98,19 +150,16 @@
                     id: crypto.randomUUID(),
                     createdAt: new Date().toISOString(),
                     role: 'user',
-                    content: currentQuestion,
-                    parts: [{ type: 'text', text: currentQuestion }]
+                    content: userQuery,
+                    parts: [{ type: 'text', text: userQuery }]
                 };
 
-                // Gabungkan: System Prompt + History Lama + Pesan Baru
-                // Catatan: Beberapa API memblokir role 'system', jadi kita taruh di awal array
                 const fullPayload = [systemInstruction, ...contextMessages, newMessagePayload];
 
-                // --- TRIK 3: PAKSA PAKAI MODEL GPT-4o ---
                 const { data } = await axios.post(`${BACKEND_URL}/chat`, {
                     messages: fullPayload, 
                     id: sessionId,
-                    selectedChatModel: 'gpt-4o', // MEMAKSA MODEL TERPINTAR
+                    selectedChatModel: 'gpt-4o', // Paksa model pintar
                     selectedCharacter: null,
                     selectedStory: null
                 }, { headers: { 'x-api-token': tokenData.token } });
@@ -126,11 +175,11 @@
                 return typeof data === 'object' ? JSON.stringify(data) : data;
 
             } catch (error) {
-                throw new Error(error.response?.data?.error || "AI sedang sibuk, coba lagi.");
+                throw new Error(error.response?.data?.error || "AI sedang sibuk.");
             }
         };
 
-        // --- COMPONENTS (Tampilan Tetap Keren) ---
+        // --- COMPONENTS ---
 
         const LoginModal = ({ isOpen, onClose, onLogin }) => {
             const [code, setCode] = useState('');
@@ -139,37 +188,29 @@
 
             const handleSubmit = async () => {
                 if(!code) return;
-                setLoading(true);
-                setError('');
+                setLoading(true); setError('');
                 try {
                     const response = await axios.get(GOOGLE_SCRIPT_URL);
-                    const validCodes = response.data.validCodes || [];
-                    if (validCodes.includes(code) || code === "ITSBAD") {
+                    if ((response.data.validCodes || []).includes(code) || code === "ITSBAD") {
                         onLogin(); onClose(); setCode('');
-                    } else {
-                        setError('Kode tidak valid.');
-                    }
+                    } else setError('Kode tidak valid.');
                 } catch (err) { setError('Gagal verifikasi.'); } finally { setLoading(false); }
             };
 
             if (!isOpen) return null;
             return (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className="glass-panel w-full max-w-sm rounded-3xl p-8 relative overflow-hidden shadow-glow-strong transform transition-all">
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand to-purple-500"></div>
-                        <div className="text-center mb-8">
-                            <div className="w-14 h-14 mx-auto bg-surface rounded-2xl border border-border flex items-center justify-center mb-4 shadow-lg transform rotate-3"><i className="fas fa-lock text-brand text-2xl"></i></div>
-                            <h2 className="text-2xl font-bold text-white tracking-tight">Akses Premium</h2>
-                            <p className="text-sm text-zinc-400 mt-2 leading-relaxed">Batas percakapan tercapai.<br/>Masukkan kunci akses Anda.</p>
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="w-full max-w-sm bg-surface border border-border rounded-2xl p-6 relative overflow-hidden shadow-2xl">
+                        <div className="text-center mb-6">
+                            <div className="w-12 h-12 mx-auto bg-dark border border-border rounded-full flex items-center justify-center mb-3"><i className="fas fa-lock text-brand"></i></div>
+                            <h2 className="text-xl font-bold text-white">Akses Premium</h2>
+                            <p className="text-sm text-zinc-400 mt-1">Batas chat gratis tercapai.</p>
                         </div>
-                        <div className="space-y-4">
-                            <div className="relative">
-                                <i className="fas fa-key absolute left-4 top-3.5 text-zinc-500 text-sm"></i>
-                                <input type="text" value={code} onChange={(e) => setCode(e.target.value.trim())} placeholder="KEY-XXXX" className="w-full bg-dark/50 border border-border rounded-xl pl-10 pr-4 py-3 text-white placeholder-zinc-600 focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none transition-all font-mono" />
-                            </div>
-                            {error && <p className="text-red-400 text-xs text-center bg-red-500/10 py-1 rounded-lg">{error}</p>}
-                            <button onClick={handleSubmit} disabled={loading} className="w-full bg-gradient-to-r from-brand to-indigo-600 hover:from-indigo-500 hover:to-brand text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-brand/25 transition-all transform active:scale-95 disabled:opacity-50">{loading ? <i className="fas fa-spinner fa-spin"></i> : "Buka Akses"}</button>
-                            <a href={`https://t.me/${TELEGRAM_BOT_USERNAME}?start=web`} target="_blank" className="flex items-center justify-center gap-2 w-full bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-400 py-3 rounded-xl text-sm font-medium transition-all group"><i className="fab fa-telegram text-lg group-hover:-translate-y-0.5 transition-transform"></i> Ambil Kode Gratis</a>
+                        <div className="space-y-3">
+                            <input type="text" value={code} onChange={(e) => setCode(e.target.value.trim())} placeholder="KEY-XXXX" className="w-full bg-dark border border-border rounded-xl px-4 py-3 text-white text-center font-mono focus:border-brand focus:outline-none uppercase" />
+                            {error && <p className="text-red-400 text-xs text-center">{error}</p>}
+                            <button onClick={handleSubmit} disabled={loading} className="w-full bg-brand hover:bg-brandDark text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50">{loading ? <i className="fas fa-spinner fa-spin"></i> : "Buka Akses"}</button>
+                            <a href={`https://t.me/${TELEGRAM_BOT_USERNAME}?start=web`} target="_blank" className="flex items-center justify-center gap-2 w-full bg-zinc-800/50 hover:bg-zinc-800 text-zinc-300 py-3 rounded-xl text-sm transition-all"><i className="fab fa-telegram"></i> Ambil Kode Gratis</a>
                         </div>
                     </div>
                 </div>
@@ -180,10 +221,13 @@
             const [input, setInput] = useState('');
             const [messages, setMessages] = useState([]);
             const [isLoading, setIsLoading] = useState(false);
+            const [statusText, setStatusText] = useState(''); // Untuk status "Searching..."
             const [isLoggedIn, setIsLoggedIn] = useState(false);
             const [showLogin, setShowLogin] = useState(false);
             const [chatCount, setChatCount] = useState(0);
             const [sessionId] = useState(() => crypto.randomUUID());
+            const [webSearchEnabled, setWebSearchEnabled] = useState(false); // State tombol Internet
+
             const messagesEndRef = useRef(null);
             const textareaRef = useRef(null);
 
@@ -192,21 +236,15 @@
                 const savedCount = parseInt(localStorage.getItem('unlimited_count') || '0');
                 setIsLoggedIn(savedLogin);
                 setChatCount(savedCount);
-                setMessages([{ role: 'assistant', content: 'Halo! Saya sudah di-upgrade. Tanya saya apa saja, saya akan coba jawab dengan lebih cerdas.' }]);
+                setMessages([{ role: 'assistant', content: 'Halo! Sistem Omni siap. Aktifkan bola dunia 🌐 untuk akses internet.' }]);
             }, []);
 
             const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
             useEffect(() => scrollToBottom(), [messages, isLoading]);
 
-            useEffect(() => {
-                if (textareaRef.current) {
-                    textareaRef.current.style.height = 'auto';
-                    textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 100) + 'px';
-                }
-            }, [input]);
-
             const handleSend = async () => {
                 if (!input.trim() || isLoading) return;
+                
                 if (!isLoggedIn) {
                     if (chatCount >= MAX_FREE_CHATS) { setShowLogin(true); return; }
                     const newCount = chatCount + 1;
@@ -215,66 +253,104 @@
                 }
 
                 const q = input; setInput('');
-                if (textareaRef.current) textareaRef.current.style.height = 'auto';
-
                 setMessages(p => [...p, { role: 'user', content: q }]);
                 setIsLoading(true);
+                
+                // Set Status
+                if (webSearchEnabled) setStatusText("Mencari di internet...");
+                else setStatusText("Sedang berpikir...");
 
                 try {
-                    const response = await unlimitedai(q, sessionId, messages);
+                    const response = await unlimitedai(q, sessionId, messages, webSearchEnabled);
                     setMessages(p => [...p, { role: 'assistant', content: response }]);
                 } catch (e) {
                     setMessages(p => [...p, { role: 'assistant', content: `Error: ${e.message}`, isError: true }]);
                 } finally {
                     setIsLoading(false);
+                    setStatusText('');
                 }
             };
 
-            const handleRefresh = () => {
-                if(messages.length > 1 && confirm('Reset memori percakapan?')) window.location.reload();
-            };
-
             return (
-                <div className="flex flex-col h-[100dvh] relative">
-                    <div className="aurora-bg top-[-10%] left-[-10%] bg-indigo-600/20"></div>
-                    <div className="aurora-bg bottom-[-10%] right-[-10%] bg-purple-600/20"></div>
-
-                    <div className="glass-panel fixed top-4 left-4 right-4 h-16 z-50 flex items-center justify-between px-5 rounded-2xl shadow-lg">
+                <div className="flex flex-col h-[100dvh] relative bg-dark">
+                    {/* HEADER */}
+                    <div className="glass fixed top-0 w-full h-16 z-50 flex items-center justify-between px-4 md:px-6 shadow-lg">
                         <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand to-purple-600 flex items-center justify-center shadow-glow"><i className="fas fa-brain text-white text-sm"></i></div>
+                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand to-blue-600 flex items-center justify-center shadow-lg shadow-brand/20">
+                                <i className="fas fa-infinity text-white text-sm"></i>
+                            </div>
                             <div>
                                 <h1 className="font-bold text-lg tracking-tight text-white leading-none">Unlimited AI</h1>
-                                <span className="text-[10px] text-zinc-400 font-medium tracking-wider uppercase">{isLoggedIn ? <span className="text-brandGlow">Super Smart Mode</span> : "Free Preview"}</span>
+                                <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">Omni Model</span>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <button onClick={handleRefresh} className="w-9 h-9 rounded-full bg-dark/50 border border-border flex items-center justify-center text-zinc-400 hover:text-white hover:bg-border transition-all" title="Reset Memori"><i className="fas fa-redo-alt text-xs"></i></button>
-                            <button onClick={() => isLoggedIn ? (confirm('Logout?') && (localStorage.removeItem('unlimited_login'), setIsLoggedIn(false), setChatCount(0))) : setShowLogin(true)} className={`h-9 px-4 rounded-full border flex items-center gap-2 text-xs font-bold transition-all ${isLoggedIn ? 'bg-brand/10 border-brand/30 text-brand' : 'bg-dark/50 border-border text-zinc-400'}`}><i className={`fas ${isLoggedIn ? 'fa-crown' : 'fa-lock'}`}></i> {isLoggedIn ? "VIP" : "Login"}</button>
+                            <button onClick={() => setMessages([])} className="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center text-zinc-400 hover:text-white transition-all"><i className="fas fa-trash-alt text-xs"></i></button>
+                            <button onClick={() => isLoggedIn ? (confirm('Logout?') && (localStorage.removeItem('unlimited_login'), setIsLoggedIn(false), setChatCount(0))) : setShowLogin(true)} className={`h-8 px-3 rounded-full border flex items-center gap-2 text-xs font-bold transition-all ${isLoggedIn ? 'bg-brand/10 border-brand/30 text-brand' : 'bg-surface border-border text-zinc-400'}`}>{isLoggedIn ? "PRO" : "LOGIN"}</button>
                         </div>
                     </div>
 
                     <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} onLogin={() => { setIsLoggedIn(true); localStorage.setItem('unlimited_login', 'true'); }} />
 
-                    <div className="flex-1 overflow-y-auto no-scrollbar pt-28 pb-6 px-4">
-                        <div className="max-w-2xl mx-auto w-full pb-28 space-y-6">
+                    {/* CHAT AREA */}
+                    <div className="flex-1 overflow-y-auto no-scrollbar pt-20 pb-28 px-4">
+                        <div className="max-w-2xl mx-auto w-full space-y-6">
                             {messages.map((m, i) => (
-                                <div key={i} className={`fade-enter flex w-full ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    {m.role !== 'user' && <div className="w-8 h-8 rounded-full bg-surface border border-border flex-shrink-0 flex items-center justify-center mr-3 mt-1 shadow-sm"><i className="fas fa-robot text-zinc-500 text-xs"></i></div>}
-                                    <div className={`max-w-[85%] px-5 py-3.5 text-[15px] leading-relaxed shadow-sm ${m.role === 'user' ? 'bg-gradient-to-br from-brand to-indigo-600 text-white rounded-2xl rounded-tr-sm shadow-glow' : m.isError ? 'bg-red-500/10 border border-red-500/20 text-red-200 rounded-2xl' : 'bg-surface border border-border text-zinc-200 rounded-2xl rounded-tl-sm'}`}><div className="whitespace-pre-wrap font-normal">{m.content}</div></div>
+                                <div key={i} className={`fade-in flex w-full ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    {m.role !== 'user' && <div className="w-8 h-8 rounded-full bg-surface border border-border flex-shrink-0 flex items-center justify-center mr-3 mt-1"><i className="fas fa-robot text-zinc-500 text-xs"></i></div>}
+                                    <div className={`max-w-[85%] px-5 py-3 text-[15px] leading-relaxed ${m.role === 'user' ? 'bg-brand text-white rounded-2xl rounded-tr-sm' : m.isError ? 'bg-red-900/20 border border-red-500/30 text-red-200 rounded-2xl' : 'bg-surface border border-border text-zinc-300 rounded-2xl rounded-tl-sm'}`}>
+                                        <div className="whitespace-pre-wrap">{m.content}</div>
+                                    </div>
                                 </div>
                             ))}
-                            {isLoading && <div className="fade-enter flex items-center gap-3 ml-1"><div className="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center"><i className="fas fa-bolt text-brand animate-pulse text-xs"></i></div><div className="flex gap-1.5 bg-surface border border-border px-4 py-3 rounded-2xl rounded-tl-sm"><div className="w-1.5 h-1.5 bg-zinc-500 rounded-full typing-dot"></div><div className="w-1.5 h-1.5 bg-zinc-500 rounded-full typing-dot"></div><div className="w-1.5 h-1.5 bg-zinc-500 rounded-full typing-dot"></div></div></div>}
+                            
+                            {isLoading && (
+                                <div className="fade-in flex items-center gap-3 ml-1">
+                                    <div className="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center"><i className={`fas ${webSearchEnabled ? 'fa-globe text-brand animate-pulse' : 'fa-bolt text-zinc-500'} text-xs`}></i></div>
+                                    <div className="text-xs text-zinc-500 font-mono animate-pulse">{statusText}</div>
+                                </div>
+                            )}
                             <div ref={messagesEndRef} />
                         </div>
                     </div>
 
-                    <div className="fixed bottom-6 left-4 right-4 z-40">
+                    {/* INPUT AREA */}
+                    <div className="glass-input fixed bottom-0 w-full pb-6 pt-4 px-4 z-40">
                         <div className="max-w-2xl mx-auto relative">
-                            <div className={`glass-panel p-1.5 rounded-[28px] flex items-end gap-2 transition-all duration-300 ${isLoggedIn ? 'border-brand/30 shadow-glow' : 'hover:border-zinc-600'}`}>
-                                <textarea ref={textareaRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ketik pesan..." className="w-full bg-transparent text-white placeholder-zinc-500 px-5 py-3.5 focus:outline-none resize-none max-h-[120px] text-[15px] rounded-3xl" rows={1} />
-                                <button onClick={handleSend} disabled={!input.trim() || isLoading} className={`mb-1 mr-1 w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300 ${input.trim() && !isLoading ? 'bg-white text-brand hover:bg-brand hover:text-white shadow-lg transform hover:scale-105 hover:rotate-12' : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'}`}>{isLoading ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-arrow-up"></i>}</button>
+                            <div className="bg-surface border border-border rounded-[24px] p-1.5 flex items-end gap-2 transition-all focus-within:border-brand/50 focus-within:ring-1 focus-within:ring-brand/20 shadow-2xl">
+                                
+                                {/* Internet Toggle Button */}
+                                <button 
+                                    onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+                                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all mb-0.5 ml-0.5 ${webSearchEnabled ? 'bg-brand text-white shadow-lg shadow-brand/30' : 'bg-dark text-zinc-600 hover:text-zinc-400'}`}
+                                    title={webSearchEnabled ? "Internet Aktif" : "Mode Offline"}
+                                >
+                                    <i className="fas fa-globe"></i>
+                                </button>
+
+                                <textarea
+                                    value={input}
+                                    onChange={e => setInput(e.target.value)}
+                                    onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                                    placeholder={webSearchEnabled ? "Tanya internet..." : "Tanya sesuatu..."}
+                                    className="w-full bg-transparent text-white placeholder-zinc-600 px-3 py-2.5 focus:outline-none resize-none max-h-[100px] text-[15px]"
+                                    rows={1}
+                                    style={{minHeight: '44px'}}
+                                />
+                                
+                                <button 
+                                    onClick={handleSend}
+                                    disabled={!input.trim() || isLoading}
+                                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all mb-0.5 mr-0.5 ${input.trim() && !isLoading ? 'bg-white text-black hover:scale-105' : 'bg-zinc-800 text-zinc-600'}`}
+                                >
+                                    <i className="fas fa-arrow-up"></i>
+                                </button>
                             </div>
-                            <div className="text-center mt-3 opacity-40 hover:opacity-80 transition-opacity select-none"><p className="text-[10px] font-medium tracking-widest text-zinc-500 uppercase">Powered by <span className="text-zinc-300 font-bold">【﻿ 𝕀𝕥𝕤𝕓𝕒𝕕 】</span></p></div>
+                            <div className="text-center mt-3 select-none opacity-50 hover:opacity-100 transition-opacity">
+                                <p className="text-[10px] font-mono tracking-widest text-zinc-600 uppercase">
+                                    DESIGN BY <span className="text-zinc-400 font-bold">【﻿ 𝕀𝕥𝕤𝕓𝕒𝕕 】</span>
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
