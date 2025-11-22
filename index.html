@@ -33,13 +33,11 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
         /* Animations */
-        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        .fade-in { animation: fadeIn 0.3s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        .fade-in-up { animation: fadeInUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; opacity: 0; transform: translateY(20px); }
+        .fade-in-up { animation: fadeInUp 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; opacity: 0; transform: translateY(20px); }
         @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
-        .delay-100 { animation-delay: 100ms; }
-        .delay-200 { animation-delay: 200ms; }
         
         .scale-in { animation: scaleIn 0.2s ease-out forwards; }
         @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -56,7 +54,7 @@
         .msg-content img { border-radius: 16px; margin-top: 12px; max-width: 100%; border: 1px solid #444746; }
         .msg-content b { font-weight: 600; color: #fff; }
         
-        /* Dropdown Menu */
+        /* Dropdown & Modal */
         .dropdown-menu {
             background: #28292a;
             border: 1px solid #444746;
@@ -66,7 +64,6 @@
             z-index: 100;
         }
         
-        /* Chip Hover */
         .chip-hover:hover { background-color: #3c4043; transform: translateY(-2px); transition: all 0.2s; }
     </style>
 
@@ -133,18 +130,20 @@
                 const { data: tokenData } = await axios.get(`${BACKEND_URL}/token`);
                 if (!tokenData || !tokenData.token) throw new Error("Koneksi server gagal.");
 
+                // SYSTEM PROMPT CLEAN - NO "ITSBAD" MENTION IN GREETING
                 let systemContent = `
-IMPORTANT SYSTEM INSTRUCTION:
-1. IDENTITY: You are "Kebis AI", created by "Itsbad".
-2. PROHIBITED: Do NOT mention "Unlimited AI". If asked who you are, say "Saya adalah Kebis AI, dikembangkan oleh Itsbad."
-3. LANGUAGE: Indonesian (Bahasa Indonesia).
+STRICT IDENTITY PROTOCOL:
+1. NAME: "Kebis AI".
+2. CREATOR: "Itsbad" (Only reveal this if user explicitly asks "Who created you?" or "Siapa pembuatmu?").
+3. GREETING: Do NOT introduce yourself in every message. Just answer the query.
 4. MODEL: ${selectedModel}
 5. USER: ${userName || 'Pengguna'}
+6. PROHIBITED: Never say "Unlimited AI".
 
 CAPABILITIES:
-- Answer Text intelligently.
-- IMAGE GENERATION: Output markdown ![Img](https://image.pollinations.ai/prompt/{English_Prompt_URL_Encoded})
-- WEB ACCESS: Use provided context.
+- Answer in Indonesian, smart & concise.
+- IMAGE: Output markdown ![Img](https://image.pollinations.ai/prompt/{English_Prompt_URL_Encoded})
+- WEB: Use provided internet data.
                 `.trim();
                 
                 if (useWebSearch) {
@@ -153,7 +152,7 @@ CAPABILITIES:
                 }
                 if (imageBase64) {
                     systemContent += `\n\n[IMAGE CONTEXT]: User uploaded an image. Analyze it.`;
-                    currentQuestion += ` [Analisis Gambar]`;
+                    currentQuestion += ` [Image Analysis Request]`;
                 }
 
                 const systemMessage = { id: crypto.randomUUID(), role: 'system', content: systemContent, parts: [{ type: 'text', text: systemContent }], createdAt: new Date().toISOString() };
@@ -161,10 +160,10 @@ CAPABILITIES:
                     id: crypto.randomUUID(), role: m.role, content: m.content, parts: [{ type: 'text', text: m.content }], createdAt: new Date().toISOString() 
                 }));
                 
-                // Inject identity reminder in every message
-                const reinforcedQuestion = `${currentQuestion} (Ingat: Nama kamu Kebis AI)`;
+                // Inject subtle identity reminder
+                const safeQuestion = currentQuestion + `\n\n(System Note: You are Kebis AI)`;
                 
-                const userMessage = { id: crypto.randomUUID(), createdAt: new Date().toISOString(), role: 'user', content: reinforcedQuestion, parts: [{ type: 'text', text: reinforcedQuestion }] };
+                const userMessage = { id: crypto.randomUUID(), createdAt: new Date().toISOString(), role: 'user', content: safeQuestion, parts: [{ type: 'text', text: safeQuestion }] };
                 const fullPayload = [systemMessage, ...recentHistory, userMessage];
 
                 const { data } = await axios.post(`${BACKEND_URL}/chat`, {
@@ -183,8 +182,7 @@ CAPABILITIES:
                     rawResponse = JSON.stringify(data);
                 }
 
-                // --- FORCE IDENTITY FILTER (THE FIX) ---
-                // Ini adalah "Operasi Plastik" untuk memaksa nama Kebis AI
+                // FORCE FILTER: Replace unwanted names
                 const filteredResponse = rawResponse
                     .replace(/UnlimitedAI\.Chat/gi, "Kebis AI")
                     .replace(/Unlimited AI/gi, "Kebis AI")
@@ -203,6 +201,30 @@ CAPABILITIES:
                 <span className="text-sm font-medium text-[#e3e3e3] whitespace-nowrap">{text}</span>
             </button>
         );
+
+        const AboutModal = ({ isOpen, onClose }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 z-[99] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm fade-in" onClick={onClose}>
+                    <div className="w-full max-w-sm bg-[#1e1f20] rounded-2xl p-6 shadow-2xl border border-[#444746] scale-in text-center" onClick={e => e.stopPropagation()}>
+                        <div className="w-16 h-16 mx-auto bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mb-4 shadow-lg">
+                            <i className="fas fa-fingerprint text-2xl text-white"></i>
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-1">Kebis AI</h3>
+                        <p className="text-xs text-[#a8c7fa] uppercase tracking-widest mb-4">Kecerdasan Biner Sistem</p>
+                        <div className="bg-[#28292a] rounded-xl p-4 border border-[#444746] mb-4">
+                            <p className="text-sm text-gray-300 leading-relaxed">
+                                Sistem kecerdasan buatan mutakhir yang dirancang untuk membantu tugas harian Anda.
+                            </p>
+                        </div>
+                        <p className="text-xs text-gray-500 mb-6">Version 2.0 • OMNI Model</p>
+                        <div className="border-t border-[#444746] pt-4">
+                            <p className="text-xs text-gray-400">Developed with <span className="text-red-400">❤</span> by <span className="text-white font-bold">Itsbad</span></p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
 
         const ModelSelectorModal = ({ isOpen, onClose, currentModel, onSelect }) => {
             if (!isOpen) return null;
@@ -232,7 +254,7 @@ CAPABILITIES:
             );
         };
 
-        const Sidebar = ({ isOpen, onClose, onNewChat, history, activeSession, onSelectSession, onDeleteHistory, onOpenSettings }) => {
+        const Sidebar = ({ isOpen, onClose, onNewChat, history, activeSession, onSelectSession, onDeleteHistory, onOpenSettings, onOpenAbout }) => {
             const [menuOpenId, setMenuOpenId] = useState(null); 
 
             return (
@@ -271,12 +293,11 @@ CAPABILITIES:
                         </div>
                         
                         <div className="p-4 border-t border-[#444746]">
-                            <button onClick={onOpenSettings} className="w-full flex items-center gap-3 px-3 py-3 text-sm text-[#e3e3e3] hover:bg-white/5 rounded-xl transition-colors group">
-                                <div className="w-6 h-6 rounded bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-[10px] text-white shadow-lg group-hover:scale-110 transition-transform"><i className="fas fa-gem"></i></div>
-                                <div className="flex flex-col items-start">
-                                    <span className="font-medium">Kebis Advanced</span>
-                                    <span className="text-[10px] text-gray-400">Upgrade model AI</span>
-                                </div>
+                            <button onClick={onOpenSettings} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-[#e3e3e3] hover:bg-white/5 rounded-lg transition-colors mb-1">
+                                <i className="fas fa-gem text-[#a8c7fa]"></i> <span>Model AI</span>
+                            </button>
+                            <button onClick={onOpenAbout} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-[#e3e3e3] hover:bg-white/5 rounded-lg transition-colors">
+                                <i className="fas fa-info-circle text-gray-400"></i> <span>Tentang Kebis</span>
                             </button>
                         </div>
                     </div>
@@ -332,6 +353,7 @@ CAPABILITIES:
             
             const [currentModel, setCurrentModel] = useState('gpt-4o');
             const [showModelModal, setShowModelModal] = useState(false);
+            const [showAboutModal, setShowAboutModal] = useState(false);
 
             const messagesEndRef = useRef(null);
             const fileInputRef = useRef(null);
@@ -406,6 +428,7 @@ CAPABILITIES:
                         onSelectSession={(id) => { setSessionId(id); setMessages([]); }} 
                         onDeleteHistory={handleDeleteHistory}
                         onOpenSettings={() => setShowModelModal(true)}
+                        onOpenAbout={() => setShowAboutModal(true)}
                     />
 
                     <ModelSelectorModal 
@@ -413,6 +436,11 @@ CAPABILITIES:
                         onClose={() => setShowModelModal(false)} 
                         currentModel={currentModel}
                         onSelect={setCurrentModel}
+                    />
+
+                    <AboutModal 
+                        isOpen={showAboutModal} 
+                        onClose={() => setShowAboutModal(false)} 
                     />
 
                     <div className="flex-1 flex flex-col h-full relative w-full">
