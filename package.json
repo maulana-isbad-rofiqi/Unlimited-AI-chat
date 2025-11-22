@@ -8,12 +8,15 @@
     "deploy": "vercel deploy --prod"
   },
   "dependencies": {
-    "ai": "^3.4.21",
-    "@ai-sdk/openai": "^0.0.61",
-    "@ai-sdk/anthropic": "^0.0.52"
+    "ai": "^5.0.99",
+    "@ai-sdk/openai": "^2.0.71",
+    "@ai-sdk/anthropic": "^2.0.45"
   },
   "devDependencies": {
     "vercel": "^37.10.1"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "author": "Itsbad",
   "license": "MIT"
