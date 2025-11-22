@@ -1,11 +1,11 @@
 import { generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
-import { anthropic } from '@ai-sdk/anthropic';
+import { anthropic } from '@ai-sdk/anthropic';  // Ganti dari sebelumnya
 
 const models = {
   'gpt-4o': openai('gpt-4o'),
   'gpt-4o-mini': openai('gpt-4o-mini'),
-  'claude-3-5-sonnet': anthropic('claude-3-5-sonnet-20241022'), // Use the latest Claude model name
+  'claude-3-5-sonnet': anthropic('claude-3-5-sonnet-20241022'),
 };
 
 export default async function handler(req, res) {
@@ -13,7 +13,6 @@ export default async function handler(req, res) {
     const { messages, id, selectedChatModel, selectedCharacter, selectedStory } = req.body;
     const authToken = req.headers['x-api-token'];
 
-    // Simple auth check
     if (authToken !== (process.env.API_TOKEN || 'test-token-12345')) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
@@ -24,10 +23,8 @@ export default async function handler(req, res) {
       const { text } = await generateText({
         model,
         messages: messages.map(m => ({ role: m.role, content: m.parts[0].text })),
-        // Add other options if needed, like maxTokens
       });
 
-      // Format response to match client expectation: '0:"escaped text"'
       const escapedText = text.replace(/"/g, '\\"');
       res.send(`0:"${escapedText}"`);
     } catch (error) {
