@@ -8,9 +8,9 @@
     "deploy": "vercel deploy --prod"
   },
   "dependencies": {
-    "ai": "^5.0.99",
-    "@ai-sdk/openai": "^2.0.71",
-    "@ai-sdk/anthropic": "^2.0.45"
+    "ai": "^5.0.97",
+    "@ai-sdk/openai": "^2.0.65",
+    "@ai-sdk/anthropic": "^2.0.37"
   },
   "devDependencies": {
     "vercel": "^37.10.1"
