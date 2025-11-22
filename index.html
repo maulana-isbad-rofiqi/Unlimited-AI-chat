@@ -3,35 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Unlimited AI Interface</title>
+    <title>Unlimited AI - Pro Interface</title>
     
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
 
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #09090b; color: #e4e4e7; }
+        /* Base Styles */
+        :root { --bg-dark: #050505; --accent: #6366f1; }
+        body { font-family: 'Outfit', sans-serif; background-color: var(--bg-dark); color: #e4e4e7; overflow: hidden; }
+        
+        /* Custom Scrollbar */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .fade-in-up { animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Animations */
+        .fade-enter { animation: fadeEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes fadeEnter { from { opacity: 0; transform: translateY(15px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        
         .typing-dot { animation: typing 1.4s infinite ease-in-out both; }
         .typing-dot:nth-child(1) { animation-delay: -0.32s; }
         .typing-dot:nth-child(2) { animation-delay: -0.16s; }
         @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
-        .glass-header { background: rgba(9, 9, 11, 0.8); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
-        .glass-input { background: rgba(24, 24, 27, 0.95); backdrop-filter: blur(20px); border-top: 1px solid rgba(255, 255, 255, 0.05); }
-        .glass-modal { background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px); }
+
+        /* Glass & Aurora Effects */
+        .glass-panel {
+            background: rgba(20, 20, 23, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .aurora-bg {
+            position: absolute;
+            width: 300px; height: 300px;
+            background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, rgba(0,0,0,0) 70%);
+            filter: blur(60px);
+            z-index: -1;
+            pointer-events: none;
+        }
     </style>
 
     <script>
         tailwind.config = {
             theme: {
-                extend: { colors: { brand: '#8b5cf6', brandDark: '#7c3aed', dark: '#09090b', surface: '#18181b', subtle: '#27272a' } }
+                extend: {
+                    colors: {
+                        brand: '#6366f1', // Indigo
+                        brandGlow: '#818cf8',
+                        dark: '#050505',
+                        surface: '#121214',
+                        border: '#27272a',
+                    },
+                    boxShadow: {
+                        'glow': '0 0 20px rgba(99, 102, 241, 0.15)',
+                        'glow-strong': '0 0 30px rgba(99, 102, 241, 0.3)',
+                    }
+                }
             }
         }
     </script>
@@ -42,39 +75,59 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // --- KONFIGURASI (SUDAH DIISI OTOMATIS) ---
-        
-        // 1. URL Script Google kamu (Sudah terisi)
+        // --- CONFIGURATION ---
+        // URL Google Script Anda (Jangan Diubah jika sudah benar)
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz1i4BKzWcyBmv008V2SqqOYwwtLMfGvcmgEi2qR7vnMsTMQUC--bOqn1k6IcDSUZ8L/exec"; 
         
-        // 2. Username Bot Telegram (GANTI INI DENGAN USERNAME BOT KAMU!)
-        // Contoh: "UnlimitedAIBot" (Jangan pakai @)
+        // Username Bot Telegram Anda (Tanpa @)
         const TELEGRAM_BOT_USERNAME = "UnlimitedAIAccessBot"; 
-
+        
         const MAX_FREE_CHATS = 3;
 
-        // --- LOGIKA API ---
-        const unlimitedai = async (question) => {
+        // --- INTELLIGENT API HANDLER ---
+        const unlimitedai = async (currentQuestion, sessionId, chatHistory) => {
             try {
-                if (!question) throw new Error('Pertanyaan kosong.');
-                
-                // Menggunakan Backend Vercel (/api)
+                if (!currentQuestion) throw new Error('Pertanyaan kosong.');
                 const BACKEND_URL = "/api"; 
                 
+                // 1. Get Token
                 const { data: tokenData } = await axios.get(`${BACKEND_URL}/token`);
-                if (!tokenData || !tokenData.token) throw new Error("Gagal otentikasi.");
-                
-                const chatUuid = crypto.randomUUID();
-                const msgUuid = crypto.randomUUID();
-                
+                if (!tokenData || !tokenData.token) throw new Error("Koneksi server gagal.");
+
+                // 2. Format Context (Agar AI Ingat)
+                // Mengambil history pesan sebelumnya untuk dikirim kembali sebagai konteks
+                const contextMessages = chatHistory
+                    .filter(m => !m.isError && !m.isSystem) // Hapus pesan error/sistem
+                    .map(m => ({
+                        id: crypto.randomUUID(), // ID unik per pesan
+                        role: m.role,
+                        content: m.content,
+                        parts: [{ type: 'text', text: m.content }],
+                        createdAt: new Date().toISOString()
+                    }));
+
+                // Tambahkan pesan baru
+                const newMessagePayload = {
+                    id: crypto.randomUUID(),
+                    createdAt: new Date().toISOString(),
+                    role: 'user',
+                    content: currentQuestion,
+                    parts: [{ type: 'text', text: currentQuestion }]
+                };
+
+                // Gabungkan history + pesan baru
+                const fullPayload = [...contextMessages, newMessagePayload];
+
+                // 3. Send to AI with Session ID
                 const { data } = await axios.post(`${BACKEND_URL}/chat`, {
-                    messages: [{
-                        id: msgUuid, createdAt: new Date().toISOString(), role: 'user', content: question,
-                        parts: [{ type: 'text', text: question }]
-                    }],
-                    id: chatUuid, selectedChatModel: 'chat-model-reasoning', selectedCharacter: null, selectedStory: null
+                    messages: fullPayload, 
+                    id: sessionId, // ID Sesi yang KONSISTEN (Kunci agar 'nyambung')
+                    selectedChatModel: 'chat-model-reasoning',
+                    selectedCharacter: null,
+                    selectedStory: null
                 }, { headers: { 'x-api-token': tokenData.token } });
                 
+                // 4. Parse Response
                 if (typeof data === 'string') {
                     const resultLine = data.split('\n').find(line => line.startsWith('0:'));
                     if (resultLine) {
@@ -84,12 +137,14 @@
                     }
                 } 
                 return typeof data === 'object' ? JSON.stringify(data) : data;
+
             } catch (error) {
-                throw new Error(error.response?.data?.error || error.message);
+                throw new Error(error.response?.data?.error || "Gangguan koneksi.");
             }
         };
 
-        // --- KOMPONEN ---
+        // --- COMPONENTS ---
+
         const LoginModal = ({ isOpen, onClose, onLogin }) => {
             const [code, setCode] = useState('');
             const [error, setError] = useState('');
@@ -101,21 +156,19 @@
                 setError('');
 
                 try {
-                    // Cek ke Google Script apakah kode valid
                     const response = await axios.get(GOOGLE_SCRIPT_URL);
-                    const validCodes = response.data.validCodes || []; 
-
-                    // Validasi: Kode ada di database ATAU Master Key 'ITSBAD'
+                    const validCodes = response.data.validCodes || [];
+                    
+                    // Validasi Kode (Termasuk Master Key 'ITSBAD')
                     if (validCodes.includes(code) || code === "ITSBAD") {
                         onLogin();
                         onClose();
                         setCode('');
                     } else {
-                        setError('Kode salah atau sudah kadaluarsa.');
+                        setError('Kode tidak ditemukan atau hangus.');
                     }
                 } catch (err) {
-                    setError('Gagal terhubung ke server validasi.');
-                    console.error(err);
+                    setError('Gagal memverifikasi kode.');
                 } finally {
                     setLoading(false);
                 }
@@ -124,36 +177,50 @@
             if (!isOpen) return null;
 
             return (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 glass-modal animate-in fade-in duration-200">
-                    <div className="bg-surface border border-zinc-700 w-full max-w-sm rounded-2xl p-6 shadow-2xl relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand to-blue-500"></div>
-                        <div className="text-center mb-6">
-                            <div className="w-12 h-12 mx-auto bg-zinc-800 rounded-full flex items-center justify-center mb-3 border border-zinc-700">
-                                <i className="fas fa-shield-alt text-brand text-xl"></i>
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="glass-panel w-full max-w-sm rounded-3xl p-8 relative overflow-hidden shadow-glow-strong transform transition-all">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand to-purple-500"></div>
+                        
+                        <div className="text-center mb-8">
+                            <div className="w-14 h-14 mx-auto bg-surface rounded-2xl border border-border flex items-center justify-center mb-4 shadow-lg transform rotate-3">
+                                <i className="fas fa-lock text-brand text-2xl"></i>
                             </div>
-                            <h2 className="text-xl font-bold text-white">Akses Member</h2>
-                            <p className="text-sm text-zinc-400 mt-1">Masukkan Kunci Akses Telegram Anda.</p>
+                            <h2 className="text-2xl font-bold text-white tracking-tight">Akses Premium</h2>
+                            <p className="text-sm text-zinc-400 mt-2 leading-relaxed">
+                                Batas percakapan gratis tercapai. <br/>Masukkan kunci akses untuk melanjutkan.
+                            </p>
                         </div>
+
                         <div className="space-y-4">
-                            <div>
+                            <div className="relative">
+                                <i className="fas fa-key absolute left-4 top-3.5 text-zinc-500 text-sm"></i>
                                 <input 
                                     type="text" value={code} onChange={(e) => setCode(e.target.value.trim())}
-                                    placeholder="KEY-XXXXXX"
-                                    className="w-full bg-dark border border-zinc-700 rounded-xl px-4 py-3 text-center font-mono font-bold text-white focus:border-brand focus:outline-none uppercase"
+                                    placeholder="Tempel Kode (KEY-XXXX)"
+                                    className="w-full bg-dark/50 border border-border rounded-xl pl-10 pr-4 py-3 text-white placeholder-zinc-600 focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none transition-all font-mono"
                                 />
-                                {error && <p className="text-red-400 text-xs text-center mt-2">{error}</p>}
                             </div>
-                            <button onClick={handleSubmit} disabled={loading} className="w-full bg-brand hover:bg-brandDark text-white font-medium py-3 rounded-xl shadow-lg shadow-brand/20 disabled:opacity-50 flex justify-center items-center gap-2">
-                                {loading ? <><i className="fas fa-spinner fa-spin"></i> Memeriksa...</> : "Masuk"}
+                            {error && <p className="text-red-400 text-xs text-center bg-red-500/10 py-1 rounded-lg border border-red-500/20">{error}</p>}
+                            
+                            <button 
+                                onClick={handleSubmit} 
+                                disabled={loading}
+                                className="w-full bg-gradient-to-r from-brand to-indigo-600 hover:from-indigo-500 hover:to-brand text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-brand/25 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {loading ? <i className="fas fa-spinner fa-spin"></i> : "Buka Akses"}
                             </button>
+
+                            <div className="flex items-center justify-between gap-4 pt-2">
+                                <div className="h-px bg-border flex-1"></div>
+                                <span className="text-xs text-zinc-600 font-medium uppercase tracking-wider">Atau</span>
+                                <div className="h-px bg-border flex-1"></div>
+                            </div>
                             
-                            <div className="relative my-2"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-zinc-800"></div></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-surface px-2 text-zinc-500">Belum punya kode?</span></div></div>
-                            
-                            <a href={`https://t.me/${TELEGRAM_BOT_USERNAME}?start=web`} target="_blank" className="block w-full bg-[#24A1DE]/10 hover:bg-[#24A1DE]/20 border border-[#24A1DE]/30 text-[#24A1DE] text-center py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2">
-                                <i className="fab fa-telegram text-lg"></i> Ambil Kode via Telegram
+                            <a href={`https://t.me/${TELEGRAM_BOT_USERNAME}?start=web`} target="_blank" className="flex items-center justify-center gap-2 w-full bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-400 py-3 rounded-xl text-sm font-medium transition-all group">
+                                <i className="fab fa-telegram text-lg group-hover:-translate-y-0.5 transition-transform"></i> 
+                                Ambil Kode Gratis
                             </a>
                         </div>
-                        <button onClick={onClose} className="absolute top-3 right-3 text-zinc-600 hover:text-zinc-300"><i className="fas fa-times"></i></button>
                     </div>
                 </div>
             );
@@ -161,100 +228,215 @@
 
         const App = () => {
             const [input, setInput] = useState('');
-            const [messages, setMessages] = useState([{ role: 'assistant', content: 'Halo! Selamat datang di Unlimited AI.' }]);
+            // Pesan awal lebih bersih
+            const [messages, setMessages] = useState([]);
             const [isLoading, setIsLoading] = useState(false);
+            
             const [isLoggedIn, setIsLoggedIn] = useState(false);
             const [showLogin, setShowLogin] = useState(false);
             const [chatCount, setChatCount] = useState(0);
             
+            // SESSION ID (Kunci Percakapan Nyambung)
+            // Dibuat sekali saat load, agar AI tahu ini orang yang sama
+            const [sessionId] = useState(() => crypto.randomUUID());
+
             const messagesEndRef = useRef(null);
             const textareaRef = useRef(null);
 
-            // Load Session
             useEffect(() => {
                 const savedLogin = localStorage.getItem('unlimited_login') === 'true';
                 const savedCount = parseInt(localStorage.getItem('unlimited_count') || '0');
                 setIsLoggedIn(savedLogin);
                 setChatCount(savedCount);
+                
+                // Pesan sapaan
+                setMessages([{ 
+                    role: 'assistant', 
+                    content: 'Halo! Saya Unlimited AI. Ada yang bisa saya bantu?' 
+                }]);
             }, []);
 
             const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
             useEffect(() => scrollToBottom(), [messages, isLoading]);
 
+            // Auto resize input
+            useEffect(() => {
+                if (textareaRef.current) {
+                    textareaRef.current.style.height = 'auto';
+                    textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 100) + 'px';
+                }
+            }, [input]);
+
             const handleSend = async () => {
                 if (!input.trim() || isLoading) return;
-                
-                // Cek Login / Limit Chat
+
+                // LOGIKA LIMIT (Tanpa menampilkan sisa chat di UI)
                 if (!isLoggedIn) {
                     if (chatCount >= MAX_FREE_CHATS) {
-                        setMessages(prev => [...prev, { role: 'assistant', content: '🔒 Limit chat gratis habis. Silakan ambil kode akses gratis di Telegram kami.', isSystem: true }]);
+                        // Trigger Login
                         setShowLogin(true);
                         return;
                     }
+                    // Increment Count diam-diam
                     const newCount = chatCount + 1;
                     setChatCount(newCount);
                     localStorage.setItem('unlimited_count', newCount.toString());
                 }
 
-                const q = input; setInput('');
+                const q = input; 
+                setInput('');
+                if (textareaRef.current) textareaRef.current.style.height = 'auto';
+
                 setMessages(p => [...p, { role: 'user', content: q }]);
                 setIsLoading(true);
 
                 try {
-                    const res = await unlimitedai(q);
-                    setMessages(p => [...p, { role: 'assistant', content: res }]);
+                    // KIRIM HISTORY CHAT AGAR NYAMBUNG
+                    const response = await unlimitedai(q, sessionId, messages);
+                    setMessages(p => [...p, { role: 'assistant', content: response }]);
                 } catch (e) {
-                    setMessages(p => [...p, { role: 'assistant', content: `Error: ${e.message}`, isError: true }]);
+                    setMessages(p => [...p, { role: 'assistant', content: `Maaf, terjadi kesalahan: ${e.message}`, isError: true }]);
                 } finally {
                     setIsLoading(false);
                 }
             };
 
+            // Handle Logout
+            const handleLogout = () => {
+                if(confirm('Keluar dari sesi Premium?')) {
+                    localStorage.removeItem('unlimited_login');
+                    setIsLoggedIn(false);
+                    setChatCount(0);
+                }
+            };
+
+            // Tombol Reset Topik (Hapus Ingatan)
+            const handleRefresh = () => {
+                if(messages.length > 1 && confirm('Mulai topik baru? (Riwayat saat ini akan dihapus dari memori AI)')) {
+                    window.location.reload(); // Cara paling bersih untuk reset sesi & ID
+                }
+            };
+
             return (
-                <div className="flex flex-col h-[100dvh] bg-dark">
-                    <div className="glass-header fixed top-0 w-full h-14 z-50 flex items-center justify-between px-4 md:px-6">
+                <div className="flex flex-col h-[100dvh] relative">
+                    {/* Background Ambience */}
+                    <div className="aurora-bg top-[-10%] left-[-10%] bg-indigo-600/20"></div>
+                    <div className="aurora-bg bottom-[-10%] right-[-10%] bg-purple-600/20"></div>
+
+                    {/* HEADER */}
+                    <div className="glass-panel fixed top-4 left-4 right-4 h-16 z-50 flex items-center justify-between px-5 rounded-2xl shadow-lg">
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-brand to-blue-500 flex items-center justify-center shadow-[0_0_15px_rgba(139,92,246,0.3)]"><i className="fas fa-bolt text-white text-xs"></i></div>
-                            <h1 className="font-semibold text-lg tracking-tight text-white">Unlimited AI</h1>
+                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand to-purple-600 flex items-center justify-center shadow-glow">
+                                <i className="fas fa-brain text-white text-sm"></i>
+                            </div>
+                            <div>
+                                <h1 className="font-bold text-lg tracking-tight text-white leading-none">Unlimited AI</h1>
+                                <span className="text-[10px] text-zinc-400 font-medium tracking-wider uppercase">
+                                    {isLoggedIn ? <span className="text-brandGlow">Premium Access</span> : "Free Preview"}
+                                </span>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                            {!isLoggedIn && <div className="text-xs font-mono text-zinc-500 bg-zinc-800/50 px-2 py-1 rounded border border-zinc-700">{chatCount}/{MAX_FREE_CHATS}</div>}
-                            <button onClick={() => isLoggedIn ? (confirm('Yakin ingin keluar?') && (localStorage.removeItem('unlimited_login'), setIsLoggedIn(false), setChatCount(0))) : setShowLogin(true)} className="w-8 h-8 rounded-full bg-subtle border border-zinc-700 flex items-center justify-center text-zinc-400">
-                                <i className={`fas ${isLoggedIn ? 'fa-check text-brand' : 'fa-lock'}`}></i>
+                        <div className="flex items-center gap-2">
+                            <button onClick={handleRefresh} className="w-9 h-9 rounded-full bg-dark/50 border border-border flex items-center justify-center text-zinc-400 hover:text-white hover:bg-border transition-all" title="Topik Baru">
+                                <i className="fas fa-redo-alt text-xs"></i>
+                            </button>
+                            
+                            <button 
+                                onClick={() => isLoggedIn ? handleLogout() : setShowLogin(true)} 
+                                className={`h-9 px-4 rounded-full border flex items-center gap-2 text-xs font-bold transition-all ${
+                                    isLoggedIn 
+                                    ? 'bg-brand/10 border-brand/30 text-brand hover:bg-brand/20' 
+                                    : 'bg-dark/50 border-border text-zinc-400 hover:text-white hover:border-zinc-500'
+                                }`}
+                            >
+                                <i className={`fas ${isLoggedIn ? 'fa-crown' : 'fa-lock'}`}></i>
+                                {isLoggedIn ? "VIP" : "Login"}
                             </button>
                         </div>
                     </div>
-                    
-                    <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} onLogin={() => {setIsLoggedIn(true); localStorage.setItem('unlimited_login', 'true'); setMessages(p => [...p, { role: 'assistant', content: '✅ Akses Member Diterima! Selamat menikmati chat unlimited.', isSystem: true }])}} />
 
-                    <div className="flex-1 overflow-y-auto no-scrollbar pt-20 pb-4 px-4 md:px-0">
-                        <div className="max-w-2xl mx-auto w-full pb-32">
+                    <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} onLogin={() => {
+                        setIsLoggedIn(true); 
+                        localStorage.setItem('unlimited_login', 'true');
+                    }} />
+
+                    {/* CHAT AREA */}
+                    <div className="flex-1 overflow-y-auto no-scrollbar pt-28 pb-6 px-4">
+                        <div className="max-w-2xl mx-auto w-full pb-28 space-y-6">
                             {messages.map((m, i) => (
-                                <div key={i} className={`fade-in-up flex w-full mb-6 ${m.isSystem ? 'justify-center' : m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    {m.isSystem ? <span className="bg-brand/10 text-brand text-xs px-3 py-1 rounded-full border border-brand/20"><i className="fas fa-info-circle mr-1"></i> {m.content}</span> : 
-                                    <div className={`flex max-w-[85%] gap-3 ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                                        {m.role !== 'user' && <div className="w-8 h-8 rounded-full bg-surface border border-zinc-700 flex-shrink-0 flex items-center justify-center mt-1"><i className="fas fa-robot text-zinc-400 text-xs"></i></div>}
-                                        <div className={`px-5 py-3.5 text-[15px] rounded-2xl shadow-sm ${m.role === 'user' ? 'bg-brand text-white rounded-tr-sm' : m.isError ? 'bg-red-900/20 text-red-200 border border-red-500/30' : 'bg-surface border border-zinc-800 text-zinc-300 rounded-tl-sm'}`}>{m.content}</div>
-                                    </div>}
+                                <div key={i} className={`fade-enter flex w-full ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    {/* Bot Avatar */}
+                                    {m.role !== 'user' && (
+                                        <div className="w-8 h-8 rounded-full bg-surface border border-border flex-shrink-0 flex items-center justify-center mr-3 mt-1 shadow-sm">
+                                            <i className="fas fa-robot text-zinc-500 text-xs"></i>
+                                        </div>
+                                    )}
+                                    
+                                    {/* Bubble */}
+                                    <div className={`max-w-[85%] px-5 py-3.5 text-[15px] leading-relaxed shadow-sm ${
+                                        m.role === 'user' 
+                                            ? 'bg-gradient-to-br from-brand to-indigo-600 text-white rounded-2xl rounded-tr-sm shadow-glow' 
+                                            : m.isError 
+                                                ? 'bg-red-500/10 border border-red-500/20 text-red-200 rounded-2xl'
+                                                : 'bg-surface border border-border text-zinc-200 rounded-2xl rounded-tl-sm'
+                                    }`}>
+                                        <div className="whitespace-pre-wrap font-normal">{m.content}</div>
+                                    </div>
                                 </div>
                             ))}
-                            {isLoading && <div className="fade-in-up flex gap-2 items-center ml-11 mb-6"><div className="flex gap-1 bg-surface border border-zinc-800 px-3 py-2 rounded-xl"><div className="w-1.5 h-1.5 bg-zinc-500 rounded-full typing-dot"></div><div className="w-1.5 h-1.5 bg-zinc-500 rounded-full typing-dot"></div><div className="w-1.5 h-1.5 bg-zinc-500 rounded-full typing-dot"></div></div></div>}
+                            
+                            {isLoading && (
+                                <div className="fade-enter flex items-center gap-3 ml-1">
+                                    <div className="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center">
+                                        <i className="fas fa-bolt text-brand animate-pulse text-xs"></i>
+                                    </div>
+                                    <div className="flex gap-1.5 bg-surface border border-border px-4 py-3 rounded-2xl rounded-tl-sm">
+                                        <div className="w-1.5 h-1.5 bg-zinc-500 rounded-full typing-dot"></div>
+                                        <div className="w-1.5 h-1.5 bg-zinc-500 rounded-full typing-dot"></div>
+                                        <div className="w-1.5 h-1.5 bg-zinc-500 rounded-full typing-dot"></div>
+                                    </div>
+                                </div>
+                            )}
                             <div ref={messagesEndRef} />
                         </div>
                     </div>
 
-                    <div className="glass-input fixed bottom-0 w-full pb-6 pt-4 px-4 z-40">
+                    {/* INPUT AREA */}
+                    <div className="fixed bottom-6 left-4 right-4 z-40">
                         <div className="max-w-2xl mx-auto relative">
-                            <div className={`flex items-end gap-2 bg-subtle/50 p-1.5 rounded-[24px] border transition-all duration-300 ${isLoggedIn ? 'border-brand/30' : 'border-zinc-700/50'}`}>
-                                <textarea ref={textareaRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder={isLoggedIn ? "Ketik pesan..." : `Ketik pesan (Sisa: ${MAX_FREE_CHATS - chatCount})...`} className="w-full bg-transparent text-zinc-200 placeholder-zinc-500 px-4 py-3 focus:outline-none resize-none max-h-[120px] text-[15px]" rows={1} />
-                                <button onClick={handleSend} disabled={!input.trim() || isLoading} className={`mb-1 mr-1 w-10 h-10 rounded-full flex items-center justify-center transition-all ${input.trim() && !isLoading ? 'bg-brand text-white' : 'bg-zinc-800 text-zinc-600'}`}>{isLoading ? <i className="fas fa-spinner fa-spin text-sm"></i> : <i className="fas fa-arrow-up text-sm"></i>}</button>
+                            <div className={`glass-panel p-1.5 rounded-[28px] flex items-end gap-2 transition-all duration-300 ${isLoggedIn ? 'border-brand/30 shadow-glow' : 'hover:border-zinc-600'}`}>
+                                <textarea
+                                    ref={textareaRef}
+                                    value={input}
+                                    onChange={e => setInput(e.target.value)}
+                                    onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                                    placeholder="Ketik pesan..."
+                                    className="w-full bg-transparent text-white placeholder-zinc-500 px-5 py-3.5 focus:outline-none resize-none max-h-[120px] text-[15px] rounded-3xl"
+                                    rows={1}
+                                />
+                                <button 
+                                    onClick={handleSend} 
+                                    disabled={!input.trim() || isLoading}
+                                    className={`mb-1 mr-1 w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300 ${
+                                        input.trim() && !isLoading 
+                                        ? 'bg-white text-brand hover:bg-brand hover:text-white shadow-lg transform hover:scale-105 hover:rotate-12' 
+                                        : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+                                    }`}
+                                >
+                                    {isLoading ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-arrow-up"></i>}
+                                </button>
                             </div>
-                            <div className="text-center mt-4 select-none"><p className="text-[10px] font-mono tracking-widest text-zinc-600 uppercase">Created by <span className="text-zinc-400 font-bold">【﻿ 𝕀𝕥𝕤𝕓𝕒𝕕 】</span></p></div>
+                            <div className="text-center mt-3 opacity-40 hover:opacity-80 transition-opacity select-none">
+                                <p className="text-[10px] font-medium tracking-widest text-zinc-500 uppercase">
+                                    Powered by <span className="text-zinc-300 font-bold">【﻿ 𝕀𝕥𝕤𝕓𝕒𝕕 】</span>
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
             );
         };
+
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
