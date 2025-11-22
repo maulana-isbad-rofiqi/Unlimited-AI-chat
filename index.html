@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kebis AI - Veo3 Edition</title>
+    <title>Kebis AI</title>
     
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
@@ -41,7 +41,7 @@
         .delay-100 { animation-delay: 100ms; }
         .delay-200 { animation-delay: 200ms; }
 
-        /* Gemini Gradient Text - More Vibrant */
+        /* Gemini Gradient Text */
         .gemini-gradient {
             background: linear-gradient(74deg, #4285f4 0%, #c58af9 30%, #ff6b95 60%, #f89b29 100%);
             -webkit-background-clip: text;
@@ -51,7 +51,7 @@
         }
 
         /* Message Content Styling */
-        .msg-content img, .msg-content video { border-radius: 16px; margin-top: 12px; max-width: 100%; border: 1px solid #444746; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .msg-content img { border-radius: 16px; margin-top: 12px; max-width: 100%; border: 1px solid #444746; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
         .msg-content b { font-weight: 600; color: #fff; }
 
         /* Chip Hover */
@@ -113,7 +113,7 @@
             } catch (e) { return null; }
         };
 
-        // --- BRAIN LOGIC (VEO3 ENABLED) ---
+        // --- BRAIN LOGIC (NO VIDEO) ---
         const unlimitedai = async (currentQuestion, sessionId, chatHistory, useWebSearch, imageBase64, userName) => {
             try {
                 if (!currentQuestion && !imageBase64) throw new Error('Input kosong.');
@@ -121,15 +121,13 @@
                 const { data: tokenData } = await axios.get(`${BACKEND_URL}/token`);
                 if (!tokenData || !tokenData.token) throw new Error("Koneksi server gagal.");
 
-                // INI ADALAH BAGIAN PENTING UNTUK VIDEO & GAMBAR
                 let systemContent = `
 SYSTEM: You are Kebis AI, an advanced multimodal assistant.
 User: ${userName || 'Pengguna'}
 Capabilities:
 1. TEXT: Answer accurately in Indonesian using Markdown.
 2. IMAGE GENERATION: If user asks to create an image, output exactly: ![Img](https://image.pollinations.ai/prompt/{English_Prompt_URL_Encoded})
-3. VIDEO GENERATION (Veo3 Mode): If user asks to create a video, output exactly: ![VIDEO](https://api.placeholder-video.com/generate?prompt={English_Prompt_URL_Encoded}&style=cinematic)
-4. WEB: Use internet data if enabled.
+3. WEB: Use internet data if enabled.
                 `.trim();
                 
                 if (useWebSearch) {
@@ -251,7 +249,7 @@ Capabilities:
             useEffect(() => {
                 const savedLogin = localStorage.getItem('unlimited_login') === 'true';
                 const savedName = localStorage.getItem('kebis_username');
-                if (savedName) setUserName(savedName); // Load saved name
+                if (savedName) setUserName(savedName);
                 
                 const savedCount = parseInt(localStorage.getItem('unlimited_count') || '0');
                 const savedHistory = JSON.parse(localStorage.getItem('kebis_history') || '[]');
@@ -290,13 +288,9 @@ Capabilities:
                 } catch (e) { setMessages(p => [...p, { role: 'assistant', content: `Error: ${e.message}`, isError: true }]); } finally { setIsLoading(false); }
             };
 
-            // Fungsi Helper untuk render pesan (termasuk VIDEO)
             const renderMessageContent = (content) => {
                 let html = content
                     .replace(/\n/g, '<br>')
-                    // Deteksi Video Markdown
-                    .replace(/\!\[VIDEO\]\((.*?)\)/g, '<video controls autoplay loop muted class="rounded-xl mt-3 max-w-full border border-[#444746] shadow-lg"><source src="$1" type="video/mp4">Browser Anda tidak mendukung video tag.</video>')
-                    // Deteksi Gambar Markdown
                     .replace(/\!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="rounded-xl mt-3 max-w-full border border-[#444746] shadow-lg" />')
                     .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
                 return <div className="whitespace-pre-wrap msg-content" dangerouslySetInnerHTML={{__html: html}}></div>;
@@ -326,7 +320,6 @@ Capabilities:
                                             <SuggestionChip icon="✨" text="Tulis apa saja" onClick={() => handleSend("Tuliskan puisi pendek tentang hujan di kota")} delay="delay-150" />
                                             <SuggestionChip icon="💡" text="Kembangkan ide" onClick={() => handleSend("Berikan 3 ide konten TikTok yang viral tentang AI")} delay="delay-200" />
                                             <SuggestionChip icon="🔍" text="Deep Research" onClick={() => { setWebSearchEnabled(true); handleSend("Cari analisis mendalam tentang dampak AI terhadap ekonomi global 2025"); }} delay="delay-250" />
-                                            <SuggestionChip icon="🎥" text="Buat video" onClick={() => handleSend("Buatkan video sinematik drone view pegunungan Alpen saat sunrise (Veo3 style)")} delay="delay-300" />
                                         </div>
                                     </div>
                                 ) : (
@@ -352,10 +345,10 @@ Capabilities:
                                     <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
                                     <button onClick={() => fileInputRef.current.click()} className={`w-10 h-10 rounded-full flex items-center justify-center text-[#c4c7c5] hover:bg-white/10 hover:text-white transition-colors ${selectedImage ? 'text-[#a8c7fa]' : ''}`} title="Upload Gambar"><i className="far fa-image text-lg"></i></button>
                                     <button onClick={() => setWebSearchEnabled(!webSearchEnabled)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${webSearchEnabled ? 'text-[#a8c7fa] bg-[#a8c7fa]/10' : 'text-[#c4c7c5] hover:bg-white/10 hover:text-white'}`} title="Akses Internet"><i className="fas fa-globe text-lg"></i></button>
-                                    <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Masukkan perintah, atau ketik 'buat video...'" className="flex-1 bg-transparent text-[#e3e3e3] placeholder-[#c4c7c5] px-3 py-3 focus:outline-none resize-none max-h-[120px]" rows={1} style={{minHeight: '48px'}} />
+                                    <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Masukkan perintah di sini" className="flex-1 bg-transparent text-[#e3e3e3] placeholder-[#c4c7c5] px-3 py-3 focus:outline-none resize-none max-h-[120px]" rows={1} style={{minHeight: '48px'}} />
                                     {input.trim() || selectedImage ? <button onClick={() => handleSend()} className="w-10 h-10 rounded-full flex items-center justify-center text-[#e3e3e3] hover:bg-white/10 transition-colors fade-in"><i className="fas fa-paper-plane"></i></button> : <div className="w-10 h-10 rounded-full flex items-center justify-center text-[#c4c7c5]"><i className="fas fa-microphone"></i></div>}
                                 </div>
-                                <div className="text-center mt-3"><p className="text-[11px] text-[#c4c7c5]">Kebis AI dapat menampilkan info yang tidak akurat, termasuk tentang orang. <span className="opacity-50">Veo3 Model Enabled.</span></p></div>
+                                <div className="text-center mt-3"><p className="text-[11px] text-[#c4c7c5]">Kebis AI dapat menampilkan info yang tidak akurat, termasuk tentang orang.</p></div>
                             </div>
                         </div>
                     </div>
