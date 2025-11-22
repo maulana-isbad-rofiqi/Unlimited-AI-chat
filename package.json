@@ -1,24 +1,9 @@
 {
-  "name": "kebis-ai",
+  "name": "kebis-free-proxy",
   "version": "1.0.0",
-  "description": "Kebis AI application",
-  "type": "module",
-  "scripts": {
-    "dev": "vercel dev",
-    "build": "echo 'No build required'",
-    "start": "echo 'Static site - no server required'"
-  },
   "dependencies": {
-    "ai": "^3.0.19",
-    "@ai-sdk/openai": "^0.0.14",
-    "@ai-sdk/anthropic": "^0.0.15"
-  },
-  "devDependencies": {
-    "vercel": "^32.3.0"
-  },
-  "engines": {
-    "node": ">=18"
-  },
-  "author": "Itsbad",
-  "license": "MIT"
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "axios": "^1.6.2"
+  }
 }
