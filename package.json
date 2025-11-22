@@ -2,21 +2,22 @@
   "name": "kebis-ai",
   "version": "1.0.0",
   "description": "Kebis AI application",
+  "type": "module",
   "scripts": {
     "dev": "vercel dev",
     "build": "echo 'No build required'",
     "start": "echo 'Static site - no server required'"
   },
   "dependencies": {
-    "ai": "^5.0.97",
-    "@ai-sdk/openai": "^2.0.65",
-    "@ai-sdk/anthropic": "^2.0.37"
+    "ai": "^3.0.19",
+    "@ai-sdk/openai": "^0.0.14",
+    "@ai-sdk/anthropic": "^0.0.15"
   },
   "devDependencies": {
-    "vercel": "^37.10.1"
+    "vercel": "^32.3.0"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=18"
   },
   "author": "Itsbad",
   "license": "MIT"
