@@ -2,10 +2,10 @@
   "name": "kebis-ai",
   "version": "1.0.0",
   "description": "Kebis AI application",
-  "main": "index.html",
   "scripts": {
     "dev": "vercel dev",
-    "deploy": "vercel deploy --prod"
+    "build": "echo 'No build required'",
+    "start": "echo 'Static site - no server required'"
   },
   "dependencies": {
     "ai": "^5.0.97",
