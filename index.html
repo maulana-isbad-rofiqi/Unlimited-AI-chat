@@ -33,10 +33,10 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
         /* Animations */
-        .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        .fade-in-up { animation: fadeInUp 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; opacity: 0; transform: translateY(20px); }
+        .fade-in-up { animation: fadeInUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; opacity: 0; transform: translateY(20px); }
         @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
         .delay-100 { animation-delay: 100ms; }
         .delay-200 { animation-delay: 200ms; }
@@ -133,20 +133,18 @@
                 const { data: tokenData } = await axios.get(`${BACKEND_URL}/token`);
                 if (!tokenData || !tokenData.token) throw new Error("Koneksi server gagal.");
 
-                // SYSTEM PROMPT YANG SUDAH DIPERKETAT
                 let systemContent = `
-IDENTITY PROTOCOL:
-1. YOUR NAME IS "Kebis AI".
-2. YOU ARE CREATED BY "Itsbad".
-3. NEVER use the name "Unlimited AI". If asked, deny it. You are Kebis AI.
-4. Current Model: ${selectedModel}
-5. User: ${userName || 'Pengguna'}
+IMPORTANT SYSTEM INSTRUCTION:
+1. IDENTITY: You are "Kebis AI", created by "Itsbad".
+2. PROHIBITED: Do NOT mention "Unlimited AI". If asked who you are, say "Saya adalah Kebis AI, dikembangkan oleh Itsbad."
+3. LANGUAGE: Indonesian (Bahasa Indonesia).
+4. MODEL: ${selectedModel}
+5. USER: ${userName || 'Pengguna'}
 
 CAPABILITIES:
-1. Think step-by-step.
-2. Answer in Indonesian, smart & concise.
-3. IMAGE GENERATION: If user asks to create/draw image, output exactly: ![Img](https://image.pollinations.ai/prompt/{English_Prompt_URL_Encoded})
-4. WEB: Use provided internet data.
+- Answer Text intelligently.
+- IMAGE GENERATION: Output markdown ![Img](https://image.pollinations.ai/prompt/{English_Prompt_URL_Encoded})
+- WEB ACCESS: Use provided context.
                 `.trim();
                 
                 if (useWebSearch) {
@@ -154,8 +152,8 @@ CAPABILITIES:
                     if (searchResults) systemContent += `\n\n[WEB DATA]:\n${searchResults}`;
                 }
                 if (imageBase64) {
-                    systemContent += `\n\n[IMAGE]: User attached an image. Analyze it.`;
-                    currentQuestion += ` [Image Analysis Request]`;
+                    systemContent += `\n\n[IMAGE CONTEXT]: User uploaded an image. Analyze it.`;
+                    currentQuestion += ` [Analisis Gambar]`;
                 }
 
                 const systemMessage = { id: crypto.randomUUID(), role: 'system', content: systemContent, parts: [{ type: 'text', text: systemContent }], createdAt: new Date().toISOString() };
@@ -163,25 +161,37 @@ CAPABILITIES:
                     id: crypto.randomUUID(), role: m.role, content: m.content, parts: [{ type: 'text', text: m.content }], createdAt: new Date().toISOString() 
                 }));
                 
-                // INJECT IDENTITY REMINDER INTO USER MESSAGE (Hidden trick)
-                const safeQuestion = currentQuestion + `\n\n(System Reminder: Answer as Kebis AI by Itsbad)`;
+                // Inject identity reminder in every message
+                const reinforcedQuestion = `${currentQuestion} (Ingat: Nama kamu Kebis AI)`;
                 
-                const userMessage = { id: crypto.randomUUID(), createdAt: new Date().toISOString(), role: 'user', content: safeQuestion, parts: [{ type: 'text', text: safeQuestion }] };
+                const userMessage = { id: crypto.randomUUID(), createdAt: new Date().toISOString(), role: 'user', content: reinforcedQuestion, parts: [{ type: 'text', text: reinforcedQuestion }] };
                 const fullPayload = [systemMessage, ...recentHistory, userMessage];
 
                 const { data } = await axios.post(`${BACKEND_URL}/chat`, {
                     messages: fullPayload, id: sessionId, selectedChatModel: selectedModel, selectedCharacter: null, selectedStory: null
                 }, { headers: { 'x-api-token': tokenData.token } });
                 
+                let rawResponse = "";
                 if (typeof data === 'string') {
                     const resultLine = data.split('\n').find(line => line.startsWith('0:'));
                     if (resultLine) {
                         let cleanText = resultLine.slice(2); 
                         if (cleanText.startsWith('"') && cleanText.endsWith('"')) cleanText = cleanText.slice(1, -1);
-                        try { return JSON.parse(`"${cleanText}"`); } catch (e) { return cleanText; }
+                        try { rawResponse = JSON.parse(`"${cleanText}"`); } catch (e) { rawResponse = cleanText; }
                     }
-                } 
-                return typeof data === 'object' ? JSON.stringify(data) : data;
+                } else {
+                    rawResponse = JSON.stringify(data);
+                }
+
+                // --- FORCE IDENTITY FILTER (THE FIX) ---
+                // Ini adalah "Operasi Plastik" untuk memaksa nama Kebis AI
+                const filteredResponse = rawResponse
+                    .replace(/UnlimitedAI\.Chat/gi, "Kebis AI")
+                    .replace(/Unlimited AI/gi, "Kebis AI")
+                    .replace(/UnlimitedAI/gi, "Kebis AI");
+
+                return filteredResponse;
+
             } catch (error) { throw new Error(error.response?.data?.error || "Server busy."); }
         };
 
@@ -320,7 +330,6 @@ CAPABILITIES:
             const [webSearchEnabled, setWebSearchEnabled] = useState(false);
             const [selectedImage, setSelectedImage] = useState(null);
             
-            // NEW: Model State
             const [currentModel, setCurrentModel] = useState('gpt-4o');
             const [showModelModal, setShowModelModal] = useState(false);
 
@@ -351,7 +360,6 @@ CAPABILITIES:
                 localStorage.setItem('kebis_history', JSON.stringify(newHistory));
             };
 
-            // DELETE HISTORY FUNCTION
             const handleDeleteHistory = (id) => {
                 if(confirm("Hapus riwayat chat ini?")) {
                     const newHistory = chatHistoryList.filter(h => h.id !== id);
@@ -400,7 +408,6 @@ CAPABILITIES:
                         onOpenSettings={() => setShowModelModal(true)}
                     />
 
-                    {/* MODEL SELECTOR MODAL */}
                     <ModelSelectorModal 
                         isOpen={showModelModal} 
                         onClose={() => setShowModelModal(false)} 
