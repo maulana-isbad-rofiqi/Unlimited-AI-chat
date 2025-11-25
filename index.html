@@ -390,5 +390,15 @@
         root.render(<App />);
     </script>
     <script type='text/javascript' src='//pl28111552.effectivegatecpm.com/b8/a5/fe/b8a5fe65176c8e6eca9ceb8585fcb30b.js'></script>
+        <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('PWA Registered!', reg.scope))
+                    .catch(err => console.log('PWA Fail:', err));
+            });
+        }
+    </script>
+
 </body>
 </html>
