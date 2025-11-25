@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kebis AI - GPT5</title>
+    <title>Kebis AI - Multi Engine</title>
     
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#020204">
@@ -101,13 +101,19 @@
         const TELEGRAM_BOT_USERNAME = "UnlimitedAIAccessBot"; 
         const MAX_FREE_CHATS = 3;
 
-        // --- THE BRAIN (GPT-5 ENGINE) ---
-        const kebisEngine = async (question) => {
+        // --- THE BRAIN (MULTI ENGINE) ---
+        // Sekarang menerima parameter 'modelId'
+        const kebisEngine = async (question, modelId) => {
             try {
                 if (!question) throw new Error('Input kosong.');
-                const { data } = await axios.get(`/api/chat?message=${encodeURIComponent(question)}`);
+                // Mengirim modelId ke backend
+                const { data } = await axios.get(`/api/chat?message=${encodeURIComponent(question)}&model=${modelId}`);
+                
                 if (!data || !data.result) throw new Error("Gagal terhubung ke Mesin.");
+                
                 let finalText = data.result.text || "Tidak ada jawaban.";
+                
+                // Jika GPT-5 punya sitasi, tampilkan
                 if (data.result.citations && data.result.citations.length > 0) {
                     let citeHtml = "\n\n<div class='citations'><strong>Referensi:</strong><br/>";
                     data.result.citations.slice(0, 5).forEach(c => {
@@ -125,7 +131,6 @@
         // --- COMPONENTS ---
 
         const Sidebar = ({ isOpen, onClose, history, onSelectSession, onDeleteHistory, onNewChat, onOpenAbout }) => {
-            // State untuk logika klik riwayat (1x pilih, 2x buka)
             const [selectedId, setSelectedId] = useState(null);
             useEffect(() => { if (!isOpen) setSelectedId(null); }, [isOpen]);
 
@@ -151,10 +156,8 @@
                                             <button 
                                                 onClick={() => { 
                                                     if (selectedId === session.id) {
-                                                        // KLIK KEDUA: Buka Chat
                                                         onSelectSession(session.id); onClose(); 
                                                     } else {
-                                                        // KLIK PERTAMA: Pilih & Munculkan Tombol Hapus
                                                         setSelectedId(session.id);
                                                     }
                                                 }} 
@@ -191,10 +194,10 @@
                             <i className="fas fa-cube text-white text-4xl"></i>
                         </div>
                         <h2 className="text-2xl font-bold text-white tracking-tight">Kebis AI</h2>
-                        <div className="inline-block px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] text-gray-400 mt-2 mb-6 font-mono">POWERED BY GPT-5</div>
+                        <div className="inline-block px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] text-gray-400 mt-2 mb-6 font-mono">MULTI-ENGINE SYSTEM</div>
                         <div className="text-left bg-black/40 p-4 rounded-xl border border-white/5 mb-6">
                             <p className="text-sm text-gray-300 mb-2"><span className="text-gray-500 text-xs uppercase font-bold block mb-1">Developer</span> 【﻿ 𝕀𝕥𝕤𝕓𝕒𝕕 】</p>
-                            <p className="text-sm text-gray-300 mb-2"><span className="text-gray-500 text-xs uppercase font-bold block mb-1">Core Engine</span> GPT-5 Logic & Reasoning</p>
+                            <p className="text-sm text-gray-300 mb-2"><span className="text-gray-500 text-xs uppercase font-bold block mb-1">Engines</span> GPT-5, Chatbot, Claila</p>
                         </div>
                         {installPrompt && (
                             <button onClick={onInstall} className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white py-3 rounded-xl text-sm font-bold mb-3 shadow-lg shadow-green-500/20 transition-all flex items-center justify-center gap-2">
@@ -209,7 +212,12 @@
 
         const ModelSelector = ({ isOpen, onClose, current, onSelect }) => {
             if (!isOpen) return null;
-            const models = [ { id: 'gpt5', name: 'GPT-5', icon: 'fa-microchip', desc: 'Mesin Utama (Tercerdas)', color: 'text-brand' } ];
+            // DAFTAR MESIN BARU
+            const models = [
+                { id: 'gpt5', name: 'GPT-5', icon: 'fa-microchip', desc: 'Penalaran Tinggi & Referensi', color: 'text-brand' },
+                { id: 'chatbot', name: 'Chatbot', icon: 'fa-robot', desc: 'AI Percakapan Standar', color: 'text-green-400' },
+                { id: 'claila', name: 'Claila', icon: 'fa-brain', desc: 'Asisten Pintar Alternatif', color: 'text-purple-400' }
+            ];
             return (
                 <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 fade-up" onClick={onClose}>
                     <div className="glass-panel w-full max-w-sm rounded-3xl p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -234,13 +242,13 @@
                     <button onClick={onOpenSidebar} className="w-10 h-10 rounded-full hover:bg-white/5 flex items-center justify-center text-gray-300 hover:text-white transition-colors"><i className="fas fa-bars text-lg"></i></button>
                     <div className="flex flex-col">
                         <span className="font-bold text-white text-lg tracking-tight leading-none">Kebis AI</span>
-                        <span className="text-[9px] text-brand font-bold uppercase tracking-widest opacity-80">GPT-5 Engine</span>
+                        <span className="text-[9px] text-brand font-bold uppercase tracking-widest opacity-80">{model.name} Engine</span>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
                     <button onClick={() => setModelOpen(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
                         <i className={`fas ${model.icon} text-[10px] ${model.color}`}></i>
-                        <span className="text-xs text-gray-300 font-bold uppercase">MESIN</span>
+                        <span className="text-xs text-gray-300 font-bold uppercase">UBAH</span>
                     </button>
                     <button onClick={onLogin} className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all ${isLoggedIn ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-white/5 border-white/10 text-gray-400'}`}><i className={`fas ${isLoggedIn ? 'fa-check' : 'fa-lock'} text-xs`}></i></button>
                 </div>
@@ -268,7 +276,7 @@
                     <i className="fas fa-microchip text-white text-5xl relative z-10"></i>
                 </div>
                 <h1 className="text-3xl font-bold text-white mb-3 text-center tracking-tight">Kebis AI</h1>
-                <p className="text-sm text-gray-400 text-center max-w-xs mb-10 leading-relaxed">Menggunakan mesin GPT-5 terbaru. Cerdas, Cepat, dan Akurat.</p>
+                <p className="text-sm text-gray-400 text-center max-w-xs mb-10 leading-relaxed">Sistem Multi-Engine. Pilih otak yang sesuai dengan kebutuhan Anda.</p>
                 <div className="grid grid-cols-1 gap-3 w-full max-w-sm">
                     {[
                         { icon: 'fa-code', text: 'Buat Kode Python', prompt: 'Buatkan kode Python untuk kalkulator GUI sederhana', color: 'text-blue-400' },
@@ -312,7 +320,6 @@
                 return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
             }, []);
 
-            // --- AUTO SAVE MESSAGES (PENTING: Agar chat tidak hilang) ---
             useEffect(() => {
                 if (messages.length > 0) {
                     localStorage.setItem(`kebis_msg_${sessionId}`, JSON.stringify(messages));
@@ -356,14 +363,14 @@
                 setLoading(true);
                 if (messages.length === 0) updateHistory(q);
                 try {
-                    const res = await kebisEngine(q);
+                    // PANGGIL ENGINE DENGAN MODEL TERPILIH
+                    const res = await kebisEngine(q, currentModel.id);
                     setMessages(p => [...p, { role: 'assistant', content: res }]);
                 } catch (e) {
                     setMessages(p => [...p, { role: 'assistant', content: `Error Mesin: ${e.message}`, isError: true }]);
                 } finally { setLoading(false); }
             };
 
-            // --- LOAD SESI DARI MEMORI ---
             const handleSelectSession = (id) => {
                 setSessionId(id);
                 const savedMessages = localStorage.getItem(`kebis_msg_${id}`);
@@ -375,12 +382,11 @@
                 setSidebarOpen(false);
             };
 
-            // --- HAPUS SESI DAN DATA ---
             const handleDeleteHistory = (id) => {
                 const nh = chatHistory.filter(h => h.id !== id);
                 setChatHistory(nh);
                 localStorage.setItem('kebis_history', JSON.stringify(nh));
-                localStorage.removeItem(`kebis_msg_${id}`); // Bersihkan data memori
+                localStorage.removeItem(`kebis_msg_${id}`);
                 if (sessionId === id) {
                     setSessionId(crypto.randomUUID());
                     setMessages([]);
