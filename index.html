@@ -125,9 +125,7 @@
         // --- COMPONENTS ---
 
         const Sidebar = ({ isOpen, onClose, history, onSelectSession, onDeleteHistory, onNewChat, onOpenAbout }) => {
-            // Logic baru: Klik 1x Select, Klik 2x Open
             const [selectedId, setSelectedId] = useState(null);
-            
             useEffect(() => { if (!isOpen) setSelectedId(null); }, [isOpen]);
 
             return (
@@ -311,6 +309,13 @@
                 return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
             }, []);
 
+            // AUTO SAVE: Simpan pesan ke LocalStorage setiap kali ada perubahan
+            useEffect(() => {
+                if (messages.length > 0) {
+                    localStorage.setItem(`kebis_msg_${sessionId}`, JSON.stringify(messages));
+                }
+            }, [messages, sessionId]);
+
             useEffect(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), [messages, loading]);
             useEffect(() => { if(textareaRef.current) { textareaRef.current.style.height = 'auto'; textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 120) + 'px'; } }, [input]);
 
@@ -355,6 +360,34 @@
                 } finally { setLoading(false); }
             };
 
+            // LOAD SESSION
+            const handleSelectSession = (id) => {
+                setSessionId(id);
+                // Ambil pesan dari memori
+                const savedMessages = localStorage.getItem(`kebis_msg_${id}`);
+                setMessages(savedMessages ? JSON.parse(savedMessages) : []);
+                setSidebarOpen(false);
+            };
+
+            // DELETE SESSION
+            const handleDeleteHistory = (id) => {
+                const nh = chatHistory.filter(h => h.id !== id);
+                setChatHistory(nh);
+                localStorage.setItem('kebis_history', JSON.stringify(nh));
+                // Hapus data pesan dari memori
+                localStorage.removeItem(`kebis_msg_${id}`);
+                if (sessionId === id) {
+                    setSessionId(crypto.randomUUID());
+                    setMessages([]);
+                }
+            };
+
+            const handleNewChat = () => {
+                setMessages([]);
+                setSessionId(crypto.randomUUID());
+                setSidebarOpen(false);
+            };
+
             const renderContent = (text) => {
                 let html = text.replace(/\*\*(.*?)\*\*/g, '<b class="text-white font-bold">$1</b>').replace(/`([^`]+)`/g, '<code class="bg-white/10 px-1.5 py-0.5 rounded text-brandGlow border border-white/5 font-mono text-sm">$1</code>').replace(/\n/g, '<br>');
                 return <div className="prose text-[15px] text-gray-300 leading-relaxed" dangerouslySetInnerHTML={{__html: html}}></div>;
@@ -363,7 +396,17 @@
             return (
                 <div className="flex flex-col h-full w-full relative">
                     <Header onOpenSidebar={() => setSidebarOpen(true)} model={currentModel} setModelOpen={setShowModelMenu} isLoggedIn={isLoggedIn} count={chatCount} onLogin={() => isLoggedIn ? (confirm("Logout?") && (localStorage.removeItem('kebis_login'), setIsLoggedIn(false))) : setShowLogin(true)} />
-                    <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} history={chatHistory} onNewChat={() => { setMessages([]); setSessionId(crypto.randomUUID()); setSidebarOpen(false); }} onSelectSession={(id) => { setSessionId(id); setMessages([{role:'assistant', content:'Sesi dilanjutkan...'}]); setSidebarOpen(false); }} onDeleteHistory={(id) => { if(confirm('Hapus?')) { const nh = chatHistory.filter(h => h.id !== id); setChatHistory(nh); localStorage.setItem('kebis_history', JSON.stringify(nh)); } }} onOpenAbout={() => { setSidebarOpen(false); setShowAbout(true); }} />
+                    
+                    <Sidebar 
+                        isOpen={sidebarOpen} 
+                        onClose={() => setSidebarOpen(false)} 
+                        history={chatHistory} 
+                        onNewChat={handleNewChat} 
+                        onSelectSession={handleSelectSession} 
+                        onDeleteHistory={handleDeleteHistory} 
+                        onOpenAbout={() => { setSidebarOpen(false); setShowAbout(true); }} 
+                    />
+                    
                     <ModelSelector isOpen={showModelMenu} onClose={() => setShowModelMenu(false)} current={currentModel} onSelect={setCurrentModel} />
                     <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} onLogin={() => { setIsLoggedIn(true); localStorage.setItem('kebis_login', 'true'); }} />
                     <AboutModal isOpen={showAbout} onClose={() => setShowAbout(false)} installPrompt={deferredPrompt} onInstall={handleInstallApp} />
