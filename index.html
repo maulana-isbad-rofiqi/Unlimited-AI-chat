@@ -125,6 +125,7 @@
         // --- COMPONENTS ---
 
         const Sidebar = ({ isOpen, onClose, history, onSelectSession, onDeleteHistory, onNewChat, onOpenAbout }) => {
+            // State untuk logika klik riwayat (1x pilih, 2x buka)
             const [selectedId, setSelectedId] = useState(null);
             useEffect(() => { if (!isOpen) setSelectedId(null); }, [isOpen]);
 
@@ -150,8 +151,10 @@
                                             <button 
                                                 onClick={() => { 
                                                     if (selectedId === session.id) {
+                                                        // KLIK KEDUA: Buka Chat
                                                         onSelectSession(session.id); onClose(); 
                                                     } else {
+                                                        // KLIK PERTAMA: Pilih & Munculkan Tombol Hapus
                                                         setSelectedId(session.id);
                                                     }
                                                 }} 
@@ -309,7 +312,7 @@
                 return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
             }, []);
 
-            // AUTO SAVE: Simpan pesan ke LocalStorage setiap kali ada perubahan
+            // --- AUTO SAVE MESSAGES (PENTING: Agar chat tidak hilang) ---
             useEffect(() => {
                 if (messages.length > 0) {
                     localStorage.setItem(`kebis_msg_${sessionId}`, JSON.stringify(messages));
@@ -360,22 +363,24 @@
                 } finally { setLoading(false); }
             };
 
-            // LOAD SESSION
+            // --- LOAD SESI DARI MEMORI ---
             const handleSelectSession = (id) => {
                 setSessionId(id);
-                // Ambil pesan dari memori
                 const savedMessages = localStorage.getItem(`kebis_msg_${id}`);
-                setMessages(savedMessages ? JSON.parse(savedMessages) : []);
+                if (savedMessages) {
+                    setMessages(JSON.parse(savedMessages));
+                } else {
+                    setMessages([{ role: 'assistant', content: '⚠️ Riwayat ini kosong (Data belum tersimpan).' }]);
+                }
                 setSidebarOpen(false);
             };
 
-            // DELETE SESSION
+            // --- HAPUS SESI DAN DATA ---
             const handleDeleteHistory = (id) => {
                 const nh = chatHistory.filter(h => h.id !== id);
                 setChatHistory(nh);
                 localStorage.setItem('kebis_history', JSON.stringify(nh));
-                // Hapus data pesan dari memori
-                localStorage.removeItem(`kebis_msg_${id}`);
+                localStorage.removeItem(`kebis_msg_${id}`); // Bersihkan data memori
                 if (sessionId === id) {
                     setSessionId(crypto.randomUUID());
                     setMessages([]);
