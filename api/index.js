@@ -4,54 +4,37 @@ const axios = require('axios');
 
 const app = express();
 
-// Izinkan akses dari mana saja
 app.use(cors());
 app.use(express.json());
 
-// Target Server Gratisan
-const TARGET_URL = "https://app.unlimitedai.chat/api";
+// Endpoint Utama (GET)
+app.get('/api/chat', async (req, res) => {
+    const { message } = req.query;
 
-// Header Palsu (Biar dikira browser asli)
-const SPOOF_HEADERS = {
-    'Origin': 'https://app.unlimitedai.chat',
-    'Referer': 'https://app.unlimitedai.chat/',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Content-Type': 'application/json'
-};
-
-// 1. Endpoint Ambil Token
-app.get('/api/token', async (req, res) => {
-    try {
-        const response = await axios.get(`${TARGET_URL}/token`, { headers: SPOOF_HEADERS });
-        res.json(response.data);
-    } catch (error) {
-        res.status(500).json({ error: "Gagal ambil token gratis" });
+    if (!message) {
+        return res.status(400).json({ error: 'Pesan wajib diisi' });
     }
-});
 
-// 2. Endpoint Kirim Chat
-app.post('/api/chat', async (req, res) => {
     try {
-        // Ambil token dari header request frontend
-        const token = req.headers['x-api-token'];
+        // Menggunakan API GPT-5
+        const targetUrl = `https://theresapis.vercel.app/ai/copilot?message=${encodeURIComponent(message)}&model=gpt-5`;
         
-        const response = await axios.post(`${TARGET_URL}/chat`, req.body, {
-            headers: {
-                ...SPOOF_HEADERS,
-                'x-api-token': token
-            }
-        });
+        const response = await axios.get(targetUrl);
         
-        // Kirim balik jawaban mentah ke frontend
-        res.send(response.data);
-        
+        // Cek jika API error
+        if (!response.data || !response.data.status) {
+            throw new Error('API External Error');
+        }
+
+        // Kirim data utuh ke frontend
+        res.status(200).json(response.data);
+
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: "Gagal kirim pesan" });
+        res.status(500).json({ error: 'Gagal mengambil respon dari Mesin GPT-5' });
     }
 });
 
-// Default Route
-app.get('/', (req, res) => res.send("Server Proxy Gratis Aktif!"));
+app.get('/', (req, res) => res.send("Server Kebis AI (GPT-5 Engine) Aktif!"));
 
 module.exports = app;
