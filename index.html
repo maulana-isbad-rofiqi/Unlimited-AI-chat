@@ -5,12 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kebis AI - GPT5</title>
     
-        <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#020204">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/4712/4712109.png">
-
     
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
@@ -106,16 +105,9 @@
         const kebisEngine = async (question) => {
             try {
                 if (!question) throw new Error('Input kosong.');
-                
-                // Panggil API Backend kita sendiri
                 const { data } = await axios.get(`/api/chat?message=${encodeURIComponent(question)}`);
-                
                 if (!data || !data.result) throw new Error("Gagal terhubung ke Mesin.");
-
-                // Format hasil untuk ditampilkan
                 let finalText = data.result.text || "Tidak ada jawaban.";
-                
-                // Jika ada sitasi/referensi, tambahkan manual ke text agar dirender
                 if (data.result.citations && data.result.citations.length > 0) {
                     let citeHtml = "\n\n<div class='citations'><strong>Referensi:</strong><br/>";
                     data.result.citations.slice(0, 5).forEach(c => {
@@ -124,9 +116,7 @@
                     citeHtml += "</div>";
                     finalText += citeHtml;
                 }
-
                 return finalText;
-
             } catch (error) { 
                 throw new Error(error.response?.data?.error || "Mesin sedang sibuk, coba lagi."); 
             }
@@ -167,7 +157,8 @@
             </>
         );
 
-        const AboutModal = ({ isOpen, onClose }) => {
+        // --- UPDATED: ABOUT MODAL WITH INSTALL BUTTON ---
+        const AboutModal = ({ isOpen, onClose, installPrompt, onInstall }) => {
             if (!isOpen) return null;
             return (
                 <div className="fixed inset-0 z-[80] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md fade-up" onClick={onClose}>
@@ -183,6 +174,13 @@
                             <p className="text-sm text-gray-300 mb-2"><span className="text-gray-500 text-xs uppercase font-bold block mb-1">Core Engine</span> GPT-5 Logic & Reasoning</p>
                         </div>
                         
+                        {/* --- TOMBOL INSTALL PWA --- */}
+                        {installPrompt && (
+                            <button onClick={onInstall} className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white py-3 rounded-xl text-sm font-bold mb-3 shadow-lg shadow-green-500/20 transition-all flex items-center justify-center gap-2">
+                                <i className="fas fa-download"></i> Install Aplikasi
+                            </button>
+                        )}
+                        
                         <button onClick={onClose} className="w-full bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl text-sm font-medium transition-colors">Tutup</button>
                     </div>
                 </div>
@@ -191,10 +189,7 @@
 
         const ModelSelector = ({ isOpen, onClose, current, onSelect }) => {
             if (!isOpen) return null;
-            const models = [
-                // HANYA SATU PILIHAN
-                { id: 'gpt5', name: 'GPT-5', icon: 'fa-microchip', desc: 'Mesin Utama (Tercerdas)', color: 'text-brand' }
-            ];
+            const models = [ { id: 'gpt5', name: 'GPT-5', icon: 'fa-microchip', desc: 'Mesin Utama (Tercerdas)', color: 'text-brand' } ];
             return (
                 <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 fade-up" onClick={onClose}>
                     <div className="glass-panel w-full max-w-sm rounded-3xl p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -284,6 +279,10 @@
             const [chatHistory, setChatHistory] = useState([]);
             const [useSearch, setUseSearch] = useState(false);
             const [isRecording, setIsRecording] = useState(false);
+            
+            // --- NEW: STATE UNTUK PWA PROMPT ---
+            const [deferredPrompt, setDeferredPrompt] = useState(null);
+
             const messagesEndRef = useRef(null);
             const textareaRef = useRef(null);
 
@@ -291,10 +290,31 @@
                 setIsLoggedIn(localStorage.getItem('kebis_login') === 'true');
                 setChatCount(parseInt(localStorage.getItem('kebis_count') || '0'));
                 setChatHistory(JSON.parse(localStorage.getItem('kebis_history') || '[]'));
+
+                // --- NEW: LISTENER UNTUK INSTALL APP ---
+                const handleBeforeInstallPrompt = (e) => {
+                    e.preventDefault();
+                    setDeferredPrompt(e);
+                };
+                window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+                return () => {
+                    window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+                };
             }, []);
 
             useEffect(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), [messages, loading]);
             useEffect(() => { if(textareaRef.current) { textareaRef.current.style.height = 'auto'; textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 120) + 'px'; } }, [input]);
+
+            // --- NEW: FUNGSI TRIGGER INSTALL ---
+            const handleInstallApp = async () => {
+                if (!deferredPrompt) return;
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    setDeferredPrompt(null);
+                }
+            };
 
             const updateHistory = (msg) => {
                 const title = msg.length > 25 ? msg.substring(0, 25) + '...' : msg;
@@ -325,7 +345,6 @@
                 if (messages.length === 0) updateHistory(q);
 
                 try {
-                    // MENGGUNAKAN MESIN BARU (KEBIS ENGINE)
                     const res = await kebisEngine(q);
                     setMessages(p => [...p, { role: 'assistant', content: res }]);
                 } catch (e) {
@@ -334,12 +353,10 @@
             };
 
             const renderContent = (text) => {
-                // Render Markdown sederhana dan HTML untuk Sitasi
                 let html = text
                     .replace(/\*\*(.*?)\*\*/g, '<b class="text-white font-bold">$1</b>')
                     .replace(/`([^`]+)`/g, '<code class="bg-white/10 px-1.5 py-0.5 rounded text-brandGlow border border-white/5 font-mono text-sm">$1</code>')
                     .replace(/\n/g, '<br>');
-                
                 return <div className="prose text-[15px] text-gray-300 leading-relaxed" dangerouslySetInnerHTML={{__html: html}}></div>;
             };
 
@@ -349,7 +366,14 @@
                     <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} history={chatHistory} onNewChat={() => { setMessages([]); setSessionId(crypto.randomUUID()); setSidebarOpen(false); }} onSelectSession={(id) => { setSessionId(id); setMessages([{role:'assistant', content:'Sesi dilanjutkan...'}]); setSidebarOpen(false); }} onDeleteHistory={(id) => { if(confirm('Hapus?')) { const nh = chatHistory.filter(h => h.id !== id); setChatHistory(nh); localStorage.setItem('kebis_history', JSON.stringify(nh)); } }} onOpenAbout={() => { setSidebarOpen(false); setShowAbout(true); }} />
                     <ModelSelector isOpen={showModelMenu} onClose={() => setShowModelMenu(false)} current={currentModel} onSelect={setCurrentModel} />
                     <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} onLogin={() => { setIsLoggedIn(true); localStorage.setItem('kebis_login', 'true'); }} />
-                    <AboutModal isOpen={showAbout} onClose={() => setShowAbout(false)} />
+                    
+                    {/* --- UPDATED: KIRIM PROPS KE ABOUT MODAL --- */}
+                    <AboutModal 
+                        isOpen={showAbout} 
+                        onClose={() => setShowAbout(false)} 
+                        installPrompt={deferredPrompt}
+                        onInstall={handleInstallApp}
+                    />
 
                     <div className="flex-1 pt-16 pb-32 w-full px-4">
                         <div className="max-w-2xl mx-auto min-h-full flex flex-col">
@@ -390,7 +414,8 @@
         root.render(<App />);
     </script>
     <script type='text/javascript' src='//pl28111552.effectivegatecpm.com/b8/a5/fe/b8a5fe65176c8e6eca9ceb8585fcb30b.js'></script>
-        <script>
+    
+    <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
@@ -399,6 +424,5 @@
             });
         }
     </script>
-
 </body>
 </html>
