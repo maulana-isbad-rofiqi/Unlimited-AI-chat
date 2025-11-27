@@ -190,7 +190,6 @@
             );
         };
 
-        // --- NEW: SETTINGS MODAL (PENGATURAN) ---
         const SettingsModal = ({ isOpen, onClose, voices, selectedVoice, onVoiceChange, installPrompt, onInstall }) => {
             if (!isOpen) return null;
             return (
@@ -201,9 +200,8 @@
                             <button onClick={onClose}><i className="fas fa-times text-gray-400"></i></button>
                         </div>
 
-                        {/* VOICE SELECTOR */}
                         <div className="text-left mb-6">
-                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Suara AI (Text-to-Speech)</label>
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Pilih Suara Pembicara</label>
                             <div className="relative">
                                 <select 
                                     value={selectedVoice || ''} 
@@ -212,15 +210,19 @@
                                 >
                                     {voices.length === 0 && <option value="">Tidak ada suara ditemukan</option>}
                                     {voices.map(v => (
-                                        <option key={v.voiceURI} value={v.voiceURI} className="text-black">{v.name} ({v.lang})</option>
+                                        <option key={v.voiceURI} value={v.voiceURI} className="text-black">
+                                            {v.name} ({v.lang})
+                                        </option>
                                     ))}
                                 </select>
                                 <div className="absolute right-4 top-3.5 pointer-events-none text-gray-400"><i className="fas fa-chevron-down text-xs"></i></div>
                             </div>
-                            <p className="text-[10px] text-gray-500 mt-2">*Daftar suara bergantung pada browser/HP Anda.</p>
+                            <p className="text-[10px] text-yellow-500 mt-2 leading-tight">
+                                <i className="fas fa-info-circle mr-1"></i>
+                                Suara "Damayanti/Siri" hanya di iPhone. Suara "Andika" di Windows. Android biasanya hanya "Google".
+                            </p>
                         </div>
 
-                        {/* INFO */}
                         <div className="text-left bg-black/40 p-4 rounded-xl border border-white/5 mb-6">
                             <p className="text-sm text-gray-300 mb-2"><span className="text-gray-500 text-xs uppercase font-bold block mb-1">Developer</span> 【﻿ 𝕀𝕥𝕤𝕓𝕒𝕕 】</p>
                             <p className="text-sm text-gray-300 mb-2"><span className="text-gray-500 text-xs uppercase font-bold block mb-1">Engines</span> Copilot, DeepSeek, Muslim AI</p>
@@ -263,7 +265,7 @@
             );
         };
 
-        const Header = ({ onOpenSidebar, model, setModelOpen, isLoggedIn, count, onLogin }) => (
+        const Header = ({ onOpenSidebar, model, setModelOpen, isLoggedIn, count, onLogin, autoRead, setAutoRead }) => (
             <div className="fixed top-0 left-0 right-0 h-16 glass-nav z-40 flex items-center justify-between px-5 transition-all">
                 <div className="flex items-center gap-4">
                     <button onClick={onOpenSidebar} className="w-10 h-10 rounded-full hover:bg-white/5 flex items-center justify-center text-gray-300 hover:text-white transition-colors"><i className="fas fa-bars text-lg"></i></button>
@@ -273,11 +275,14 @@
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
+                    <button onClick={() => setAutoRead(!autoRead)} className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all ${autoRead ? 'bg-green-500/10 border-green-500 text-green-400' : 'bg-white/5 border-white/10 text-gray-400'}`} title={autoRead ? "Suara Otomatis: ON" : "Suara Otomatis: OFF"}>
+                        <i className={`fas ${autoRead ? 'fa-volume-high' : 'fa-volume-xmark'} text-xs`}></i>
+                    </button>
+
                     <button onClick={() => setModelOpen(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
                         <i className={`fas ${model.icon} text-[10px] ${model.color}`}></i>
                         <span className="text-xs text-gray-300 font-bold uppercase">UBAH</span>
                     </button>
-                    <button onClick={onLogin} className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all ${isLoggedIn ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-white/5 border-white/10 text-gray-400'}`}><i className={`fas ${isLoggedIn ? 'fa-check' : 'fa-lock'} text-xs`}></i></button>
                 </div>
             </div>
         );
@@ -319,7 +324,7 @@
             </div>
         );
 
-        // --- SUB-COMPONENT: BUBBLE CHAT DENGAN VOICE CONTROL ---
+        // --- SUB-COMPONENT: BUBBLE CHAT ---
         const ChatBubble = ({ message, renderContent, selectedVoice }) => {
             const [isSpeaking, setIsSpeaking] = useState(false);
 
@@ -329,16 +334,14 @@
                         window.speechSynthesis.cancel();
                         setIsSpeaking(false);
                     } else {
-                        window.speechSynthesis.cancel(); // Stop suara lain
-                        // Bersihkan teks
+                        window.speechSynthesis.cancel(); 
                         const cleanText = message.content.replace(/[*#`_]/g, '').replace(/\[.*?\]/g, '').replace(/https?:\/\/\S+/g, 'link');
                         const u = new SpeechSynthesisUtterance(cleanText);
                         
-                        // Set Voice (jika ada)
                         const voices = window.speechSynthesis.getVoices();
                         const voiceObj = voices.find(v => v.voiceURI === selectedVoice);
                         if (voiceObj) u.voice = voiceObj;
-                        else u.lang = 'id-ID'; // Fallback
+                        else u.lang = 'id-ID';
 
                         u.onstart = () => setIsSpeaking(true);
                         u.onend = () => setIsSpeaking(false);
@@ -358,14 +361,8 @@
                         )}
                         <div className={`px-5 py-4 rounded-2xl shadow-lg relative group ${message.role === 'user' ? 'bg-brand text-white rounded-tr-sm' : message.isError ? 'bg-red-900/20 border border-red-500/30' : 'glass-panel text-gray-200 rounded-tl-sm'}`}>
                             {renderContent(message.content)}
-                            
-                            {/* TOMBOL SUARA DI CHAT BUBBLE (PLAY/STOP) */}
                             {message.role !== 'user' && !message.isError && (
-                                <button 
-                                    onClick={handleSpeak} 
-                                    className={`absolute -bottom-6 left-0 w-6 h-6 rounded-full flex items-center justify-center transition-all ${isSpeaking ? 'bg-green-500 text-white animate-pulse' : 'text-gray-500 hover:text-white hover:bg-white/10'}`}
-                                    title={isSpeaking ? "Stop" : "Baca"}
-                                >
+                                <button onClick={handleSpeak} className={`absolute -bottom-6 left-0 w-6 h-6 rounded-full flex items-center justify-center transition-all ${isSpeaking ? 'bg-green-500 text-white animate-pulse' : 'text-gray-500 hover:text-white hover:bg-white/10'}`}>
                                     {isSpeaking ? <div className="audio-wave"><div className="audio-bar"></div><div className="audio-bar"></div><div className="audio-bar"></div></div> : <i className="fas fa-volume-high text-[10px]"></i>}
                                 </button>
                             )}
@@ -392,7 +389,7 @@
             const [isRecording, setIsRecording] = useState(false);
             const [deferredPrompt, setDeferredPrompt] = useState(null);
             
-            // VOICE STATE
+            const [autoRead, setAutoRead] = useState(false);
             const [voices, setVoices] = useState([]);
             const [selectedVoice, setSelectedVoice] = useState(null);
 
@@ -404,41 +401,47 @@
                 setChatCount(parseInt(localStorage.getItem('kebis_count') || '0'));
                 setChatHistory(JSON.parse(localStorage.getItem('kebis_history') || '[]'));
                 
-                // LOAD SUARA DARI MEMORI
-                const savedVoice = localStorage.getItem('kebis_voice');
-                if (savedVoice) setSelectedVoice(savedVoice);
-
-                // LOAD AVAILABLE VOICES
+                // LOAD SUARA LENGKAP
                 const loadVoices = () => {
                     const avail = window.speechSynthesis.getVoices();
+                    // Tidak memfilter 'id-ID' agar user bisa lihat semua opsi
                     setVoices(avail);
-                    // Jika belum ada pilihan, cari bahasa Indonesia
-                    if (!savedVoice) {
+                    const savedVoice = localStorage.getItem('kebis_voice');
+                    if(savedVoice) {
+                        setSelectedVoice(savedVoice);
+                    } else {
+                        // Default ke Indonesia jika ada
                         const indo = avail.find(v => v.lang.includes('id') || v.lang.includes('ID'));
-                        if (indo) setSelectedVoice(indo.voiceURI);
+                        if(indo) setSelectedVoice(indo.voiceURI);
                     }
                 };
+                
+                // Trik agar suara termuat di Chrome/Android
                 loadVoices();
-                window.speechSynthesis.onvoiceschanged = loadVoices;
+                if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                    window.speechSynthesis.onvoiceschanged = loadVoices;
+                }
+
+                // Cek Auto Read
+                const savedAutoRead = localStorage.getItem('kebis_autoread');
+                if(savedAutoRead) setAutoRead(savedAutoRead === 'true');
 
                 const handleBeforeInstallPrompt = (e) => { e.preventDefault(); setDeferredPrompt(e); };
                 window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
                 return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
             }, []);
 
-            // Simpan pilihan suara
-            useEffect(() => {
-                if (selectedVoice) localStorage.setItem('kebis_voice', selectedVoice);
-            }, [selectedVoice]);
+            // Simpan Preference
+            useEffect(() => { if (selectedVoice) localStorage.setItem('kebis_voice', selectedVoice); }, [selectedVoice]);
+            useEffect(() => { localStorage.setItem('kebis_autoread', autoRead); }, [autoRead]);
 
-            // AUTO READ LOGIC
             useEffect(() => {
                 if (messages.length > 0) {
                     localStorage.setItem(`kebis_msg_${sessionId}`, JSON.stringify(messages));
                     
                     const lastMsg = messages[messages.length - 1];
-                    // Baca otomatis jika pesan baru dari asisten
-                    if (lastMsg.role === 'assistant' && !lastMsg.isRead) {
+                    // AUTO READ LOGIC
+                    if (autoRead && lastMsg.role === 'assistant' && !lastMsg.isRead) {
                         lastMsg.isRead = true; 
                         setTimeout(() => {
                             if ('speechSynthesis' in window) {
@@ -453,7 +456,7 @@
                         }, 500);
                     }
                 }
-            }, [messages, sessionId, selectedVoice]); // Depend on selectedVoice
+            }, [messages, sessionId, autoRead, selectedVoice]);
 
             useEffect(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), [messages, loading]);
             useEffect(() => { if(textareaRef.current) { textareaRef.current.style.height = 'auto'; textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 120) + 'px'; } }, [input]);
@@ -488,15 +491,12 @@
                 if (!q.trim() || loading) return;
                 if (!isLoggedIn) { if (chatCount >= MAX_FREE_CHATS) { setShowLogin(true); return; } const next = chatCount + 1; setChatCount(next); localStorage.setItem('kebis_count', next); }
                 setInput('');
-                
-                window.speechSynthesis.cancel(); // Stop suara saat kirim
-
+                window.speechSynthesis.cancel();
                 setMessages(p => [...p, { role: 'user', content: q }]);
                 setLoading(true);
                 if (messages.length === 0) updateHistory(q);
                 try {
                     const res = await kebisEngine(q, currentModel.id);
-                    // isRead: false agar auto-read jalan
                     setMessages(p => [...p, { role: 'assistant', content: res, isRead: false }]);
                 } catch (e) {
                     setMessages(p => [...p, { role: 'assistant', content: `Error Mesin: ${e.message}`, isError: true, isRead: true }]);
@@ -508,7 +508,6 @@
                 setSessionId(id);
                 const savedMessages = localStorage.getItem(`kebis_msg_${id}`);
                 if (savedMessages) {
-                    // Saat load history, tandai semua isRead: true agar tidak baca ulang
                     const parsed = JSON.parse(savedMessages).map(m => ({...m, isRead: true}));
                     setMessages(parsed);
                 } else {
@@ -542,38 +541,11 @@
 
             return (
                 <div className="flex flex-col h-full w-full relative">
-                    <Header 
-                        onOpenSidebar={() => setSidebarOpen(true)} 
-                        model={currentModel} 
-                        setModelOpen={setShowModelMenu} 
-                        isLoggedIn={isLoggedIn} 
-                        count={chatCount} 
-                        onLogin={() => isLoggedIn ? (confirm("Logout?") && (localStorage.removeItem('kebis_login'), setIsLoggedIn(false))) : setShowLogin(true)}
-                    />
-                    
-                    <Sidebar 
-                        isOpen={sidebarOpen} 
-                        onClose={() => setSidebarOpen(false)} 
-                        history={chatHistory} 
-                        onNewChat={handleNewChat} 
-                        onSelectSession={handleSelectSession} 
-                        onDeleteHistory={handleDeleteHistory} 
-                        onOpenSettings={() => { setSidebarOpen(false); setShowSettings(true); }} 
-                    />
-                    
+                    <Header onOpenSidebar={() => setSidebarOpen(true)} model={currentModel} setModelOpen={setShowModelMenu} isLoggedIn={isLoggedIn} count={chatCount} onLogin={() => isLoggedIn ? (confirm("Logout?") && (localStorage.removeItem('kebis_login'), setIsLoggedIn(false))) : setShowLogin(true)} autoRead={autoRead} setAutoRead={setAutoRead} />
+                    <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} history={chatHistory} onNewChat={handleNewChat} onSelectSession={handleSelectSession} onDeleteHistory={handleDeleteHistory} onOpenSettings={() => { setSidebarOpen(false); setShowSettings(true); }} />
                     <ModelSelector isOpen={showModelMenu} onClose={() => setShowModelMenu(false)} current={currentModel} onSelect={setCurrentModel} />
                     <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} onLogin={() => { setIsLoggedIn(true); localStorage.setItem('kebis_login', 'true'); }} />
-                    
-                    {/* SETTINGS MODAL (PENGGANTI ABOUT) */}
-                    <SettingsModal 
-                        isOpen={showSettings} 
-                        onClose={() => setShowSettings(false)} 
-                        voices={voices}
-                        selectedVoice={selectedVoice}
-                        onVoiceChange={setSelectedVoice}
-                        installPrompt={deferredPrompt} 
-                        onInstall={handleInstallApp} 
-                    />
+                    <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} voices={voices} selectedVoice={selectedVoice} onVoiceChange={setSelectedVoice} installPrompt={deferredPrompt} onInstall={handleInstallApp} />
 
                     <div className="flex-1 pt-16 pb-32 w-full px-4">
                         <div className="max-w-2xl mx-auto min-h-full flex flex-col">
@@ -595,11 +567,8 @@
                         <div className="max-w-2xl mx-auto relative">
                             <div className="flex items-end gap-2 glass-panel rounded-[26px] p-2 shadow-2xl border border-white/10 transition-colors focus-within:border-brand/50">
                                 <button onClick={() => setUseSearch(!useSearch)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all mb-0.5 ${useSearch ? 'bg-blue-500/20 text-blue-400' : 'text-gray-500 hover:text-white hover:bg-white/5'}`} title="Cari Internet"><i className="fas fa-globe text-sm"></i></button>
-                                
                                 <button onClick={startVoiceInput} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all mb-0.5 ${isRecording ? 'bg-red-500 text-white pulse-ring' : 'text-gray-500 hover:text-white hover:bg-white/5'}`} title="Rekam Suara"><i className={`fas ${isRecording ? 'fa-stop' : 'fa-microphone'} text-sm`}></i></button>
-                                
                                 <textarea ref={textareaRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder={isRecording ? "Mendengarkan..." : "Ketik pesan..."} className="flex-1 bg-transparent text-white placeholder-gray-500 py-2.5 focus:outline-none resize-none max-h-[120px] text-[15px] min-h-[44px]" rows={1} />
-                                
                                 <button onClick={() => handleSend()} disabled={!input.trim() || loading} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all mb-0.5 ${input.trim() && !loading ? 'bg-brand text-white hover:scale-105 shadow-lg shadow-brand/25' : 'bg-white/5 text-gray-600 cursor-not-allowed'}`}>{loading ? <i className="fas fa-circle-notch fa-spin text-xs"></i> : <i className="fas fa-arrow-up text-sm"></i>}</button>
                             </div>
                         </div>
