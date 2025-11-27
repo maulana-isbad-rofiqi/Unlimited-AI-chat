@@ -9,7 +9,7 @@ app.use(express.json());
 
 // Endpoint Utama (GET)
 app.get('/api/chat', async (req, res) => {
-    const { message, model } = req.query;
+    const { message, model, image } = req.query; // Tambah parameter image
 
     if (!message) {
         return res.status(400).json({ error: 'Pesan wajib diisi' });
@@ -17,6 +17,7 @@ app.get('/api/chat', async (req, res) => {
 
     // Default model
     const selectedModel = model || 'gpt5';
+    const imageUrl = image || ''; // Default kosong jika tidak ada gambar
 
     try {
         let resultText = '';
@@ -45,20 +46,25 @@ app.get('/api/chat', async (req, res) => {
 
         } else if (selectedModel === 'deepseek-think') {
             // --- 4. DEEPSEEK THINK (Reasoning) ---
-            // Note: API ini menggunakan parameter 'messages'
             const targetUrl = `https://api.ootaizumi.web.id/ai/deepseek-think?messages=${encodeURIComponent(message)}`;
             const response = await axios.get(targetUrl);
-            
-            // Cek struktur response API (biasanya result atau data)
             resultText = response.data.result || response.data.data || JSON.stringify(response.data);
 
-        } else if (selectedModel === 'gptnano') {
-            // --- 5. GPT NANO ---
-            // Note: API ini menggunakan parameter 'prompt' dan 'imageUrl' (dikosongkan dulu)
-            const targetUrl = `https://api.ootaizumi.web.id/ai/gptnano?prompt=${encodeURIComponent(message)}&imageUrl=`;
+        } else if (selectedModel === 'veo3') {
+            // --- 5. VEO3 (AI VIDEO) ---
+            // Menggunakan prompt dan imageUrl
+            const targetUrl = `https://api.ootaizumi.web.id/ai-video/veo3?prompt=${encodeURIComponent(message)}&imageUrl=${encodeURIComponent(imageUrl)}`;
             const response = await axios.get(targetUrl);
             
-            resultText = response.data.result || response.data.data || JSON.stringify(response.data);
+            // Biasa return url video atau status
+            const data = response.data;
+            if (typeof data === 'string') {
+                resultText = data;
+            } else if (data.url || data.result) {
+                resultText = `Video berhasil dibuat: \n${data.url || data.result}`;
+            } else {
+                resultText = JSON.stringify(data);
+            }
         }
 
         // Kirim balik ke frontend
@@ -76,6 +82,6 @@ app.get('/api/chat', async (req, res) => {
     }
 });
 
-app.get('/', (req, res) => res.send("Server Kebis AI (5 Engines) Aktif!"));
+app.get('/', (req, res) => res.send("Server Kebis AI (Multi-Engine + Veo3) Aktif!"));
 
 module.exports = app;
