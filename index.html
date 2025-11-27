@@ -218,7 +218,7 @@
             return (
                 <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 fade-up" onClick={onClose}>
                     <div className="glass-panel w-full max-w-sm rounded-3xl p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center mb-6"><h3 className="text-white font-bold text-lg">Pilih Mesin</h3><button onClick={onClose}><i className="fas fa-times text-gray-400"></i></button></div>
+                        <div className="flex justify-between items-center mb-6"><h3 className="text-white font-bold text-lg">Pilih Model AI</h3><button onClick={onClose}><i className="fas fa-times text-gray-400"></i></button></div>
                         <div className="space-y-3">
                             {models.map(m => (
                                 <button key={m.id} onClick={() => { onSelect(m); onClose(); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${current.id === m.id ? 'bg-brand/10 border-brand' : 'bg-black/40 border-transparent hover:bg-white/5'}`}>
@@ -245,7 +245,7 @@
                 <div className="flex items-center gap-3">
                     <button onClick={() => setModelOpen(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
                         <i className={`fas ${model.icon} text-[10px] ${model.color}`}></i>
-                        <span className="text-xs text-gray-300 font-bold uppercase">UBAH</span>
+                        <span className="text-xs text-gray-300 font-bold uppercase">Model AI</span>
                     </button>
                     <button onClick={onLogin} className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all ${isLoggedIn ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-white/5 border-white/10 text-gray-400'}`}><i className={`fas ${isLoggedIn ? 'fa-check' : 'fa-lock'} text-xs`}></i></button>
                 </div>
