@@ -209,16 +209,18 @@
 
         const ModelSelector = ({ isOpen, onClose, current, onSelect }) => {
             if (!isOpen) return null;
-            // DAFTAR MESIN (DIPERBARUI NAMANYA)
+            // DAFTAR 5 MESIN LENGKAP
             const models = [
                 { id: 'gpt5', name: 'Copilot AI', icon: 'fa-microchip', desc: 'Penalaran Tinggi & Referensi', color: 'text-brand' },
-                { id: 'chatbot', name: 'DeepSeek', icon: 'fa-robot', desc: 'AI Percakapan Standar', color: 'text-green-400' },
-                { id: 'claila', name: 'Claila', icon: 'fa-brain', desc: 'Asisten Pintar Alternatif', color: 'text-purple-400' }
+                { id: 'deepseek-think', name: 'DeepSeek Think', icon: 'fa-brain', desc: 'Reasoning Mode (Berpikir)', color: 'text-cyan-400' },
+                { id: 'gptnano', name: 'GPT Nano', icon: 'fa-bolt', desc: 'Cepat & Ringan', color: 'text-yellow-400' },
+                { id: 'chatbot', name: 'DeepSeek (Std)', icon: 'fa-robot', desc: 'AI Percakapan Standar', color: 'text-green-400' },
+                { id: 'claila', name: 'Claila', icon: 'fa-star', desc: 'Asisten Pintar Alternatif', color: 'text-purple-400' }
             ];
             return (
                 <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 fade-up" onClick={onClose}>
                     <div className="glass-panel w-full max-w-sm rounded-3xl p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center mb-6"><h3 className="text-white font-bold text-lg">Pilih Model AI</h3><button onClick={onClose}><i className="fas fa-times text-gray-400"></i></button></div>
+                        <div className="flex justify-between items-center mb-6"><h3 className="text-white font-bold text-lg">Pilih Mesin</h3><button onClick={onClose}><i className="fas fa-times text-gray-400"></i></button></div>
                         <div className="space-y-3">
                             {models.map(m => (
                                 <button key={m.id} onClick={() => { onSelect(m); onClose(); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${current.id === m.id ? 'bg-brand/10 border-brand' : 'bg-black/40 border-transparent hover:bg-white/5'}`}>
@@ -245,7 +247,7 @@
                 <div className="flex items-center gap-3">
                     <button onClick={() => setModelOpen(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
                         <i className={`fas ${model.icon} text-[10px] ${model.color}`}></i>
-                        <span className="text-xs text-gray-300 font-bold uppercase">Model AI</span>
+                        <span className="text-xs text-gray-300 font-bold uppercase">PILIH AI</span>
                     </button>
                     <button onClick={onLogin} className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all ${isLoggedIn ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-white/5 border-white/10 text-gray-400'}`}><i className={`fas ${isLoggedIn ? 'fa-check' : 'fa-lock'} text-xs`}></i></button>
                 </div>
@@ -273,7 +275,7 @@
                     <i className="fas fa-microchip text-white text-5xl relative z-10"></i>
                 </div>
                 <h1 className="text-3xl font-bold text-white mb-3 text-center tracking-tight">Kebis AI</h1>
-                <p className="text-sm text-gray-400 text-center max-w-xs mb-10 leading-relaxed">Sistem Multi-Engine. Pilih otak yang sesuai dengan kebutuhan Anda.</p>
+                <p className="text-sm text-gray-400 text-center max-w-xs mb-10 leading-relaxed">Sistem Multi-Engine. Pilih AI yang sesuai dengan kebutuhan Anda.</p>
                 <div className="grid grid-cols-1 gap-3 w-full max-w-sm">
                     {[
                         { icon: 'fa-code', text: 'Buat Kode Python', prompt: 'Buatkan kode Python untuk kalkulator GUI sederhana', color: 'text-blue-400' },
