@@ -50,10 +50,11 @@ app.get('/api/chat', async (req, res) => {
             resultText = response.data.result || response.data.data || "Tidak ada hasil.";
 
         } else if (selectedModel === 'muslimai') {
-            // --- 5. MUSLIM AI (BARU) ---
+            // --- 5. MUSLIM AI (VERSI 3 - UPDATE) ---
             const targetUrl = `https://api.ootaizumi.web.id/ai/muslim-ai-3?text=${encodeURIComponent(message)}`;
             const response = await axios.get(targetUrl);
-            // Menyesuaikan dengan response API Muslim AI (biasanya result/data/answer)
+            
+            // Mengambil response dari API baru
             resultText = response.data.result || response.data.data || JSON.stringify(response.data);
         }
 
@@ -72,6 +73,6 @@ app.get('/api/chat', async (req, res) => {
     }
 });
 
-app.get('/', (req, res) => res.send("Server Kebis AI (Muslim AI Update) Aktif!"));
+app.get('/', (req, res) => res.send("Server Kebis AI (Muslim AI v3 Updated) Aktif!"));
 
 module.exports = app;
