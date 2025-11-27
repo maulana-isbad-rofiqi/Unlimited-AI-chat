@@ -102,18 +102,15 @@
         const MAX_FREE_CHATS = 3;
 
         // --- THE BRAIN (MULTI ENGINE) ---
-        // Sekarang menerima parameter 'modelId'
         const kebisEngine = async (question, modelId) => {
             try {
                 if (!question) throw new Error('Input kosong.');
-                // Mengirim modelId ke backend
                 const { data } = await axios.get(`/api/chat?message=${encodeURIComponent(question)}&model=${modelId}`);
                 
                 if (!data || !data.result) throw new Error("Gagal terhubung ke Mesin.");
                 
                 let finalText = data.result.text || "Tidak ada jawaban.";
                 
-                // Jika GPT-5 punya sitasi, tampilkan
                 if (data.result.citations && data.result.citations.length > 0) {
                     let citeHtml = "\n\n<div class='citations'><strong>Referensi:</strong><br/>";
                     data.result.citations.slice(0, 5).forEach(c => {
@@ -197,7 +194,7 @@
                         <div className="inline-block px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] text-gray-400 mt-2 mb-6 font-mono">MULTI-ENGINE SYSTEM</div>
                         <div className="text-left bg-black/40 p-4 rounded-xl border border-white/5 mb-6">
                             <p className="text-sm text-gray-300 mb-2"><span className="text-gray-500 text-xs uppercase font-bold block mb-1">Developer</span> 【﻿ 𝕀𝕥𝕤𝕓𝕒𝕕 】</p>
-                            <p className="text-sm text-gray-300 mb-2"><span className="text-gray-500 text-xs uppercase font-bold block mb-1">Engines</span> GPT-5, Chatbot, Claila</p>
+                            <p className="text-sm text-gray-300 mb-2"><span className="text-gray-500 text-xs uppercase font-bold block mb-1">Engines</span> Copilot, DeepSeek, Claila</p>
                         </div>
                         {installPrompt && (
                             <button onClick={onInstall} className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white py-3 rounded-xl text-sm font-bold mb-3 shadow-lg shadow-green-500/20 transition-all flex items-center justify-center gap-2">
@@ -212,10 +209,10 @@
 
         const ModelSelector = ({ isOpen, onClose, current, onSelect }) => {
             if (!isOpen) return null;
-            // DAFTAR MESIN BARU
+            // DAFTAR MESIN (DIPERBARUI NAMANYA)
             const models = [
-                { id: 'gpt5', name: 'GPT-5', icon: 'fa-microchip', desc: 'Penalaran Tinggi & Referensi', color: 'text-brand' },
-                { id: 'chatbot', name: 'Chatbot', icon: 'fa-robot', desc: 'AI Percakapan Standar', color: 'text-green-400' },
+                { id: 'gpt5', name: 'Copilot AI', icon: 'fa-microchip', desc: 'Penalaran Tinggi & Referensi', color: 'text-brand' },
+                { id: 'chatbot', name: 'DeepSeek', icon: 'fa-robot', desc: 'AI Percakapan Standar', color: 'text-green-400' },
                 { id: 'claila', name: 'Claila', icon: 'fa-brain', desc: 'Asisten Pintar Alternatif', color: 'text-purple-400' }
             ];
             return (
@@ -242,7 +239,7 @@
                     <button onClick={onOpenSidebar} className="w-10 h-10 rounded-full hover:bg-white/5 flex items-center justify-center text-gray-300 hover:text-white transition-colors"><i className="fas fa-bars text-lg"></i></button>
                     <div className="flex flex-col">
                         <span className="font-bold text-white text-lg tracking-tight leading-none">Kebis AI</span>
-                        <span className="text-[9px] text-brand font-bold uppercase tracking-widest opacity-80">{model.name} Engine</span>
+                        <span className="text-[9px] text-brand font-bold uppercase tracking-widest opacity-80">{model.name}</span>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -303,7 +300,8 @@
             const [sidebarOpen, setSidebarOpen] = useState(false);
             const [showModelMenu, setShowModelMenu] = useState(false);
             const [showAbout, setShowAbout] = useState(false);
-            const [currentModel, setCurrentModel] = useState({ id: 'gpt5', name: 'GPT-5', icon: 'fa-microchip', color: 'text-brand' });
+            // DEFAULT MODEL: Copilot AI (id: gpt5)
+            const [currentModel, setCurrentModel] = useState({ id: 'gpt5', name: 'Copilot AI', icon: 'fa-microchip', color: 'text-brand' });
             const [chatHistory, setChatHistory] = useState([]);
             const [useSearch, setUseSearch] = useState(false);
             const [isRecording, setIsRecording] = useState(false);
@@ -363,7 +361,6 @@
                 setLoading(true);
                 if (messages.length === 0) updateHistory(q);
                 try {
-                    // PANGGIL ENGINE DENGAN MODEL TERPILIH
                     const res = await kebisEngine(q, currentModel.id);
                     setMessages(p => [...p, { role: 'assistant', content: res }]);
                 } catch (e) {
