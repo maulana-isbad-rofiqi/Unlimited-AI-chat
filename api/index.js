@@ -9,7 +9,7 @@ app.use(express.json());
 
 // Endpoint Utama (GET)
 app.get('/api/chat', async (req, res) => {
-    const { message, model, image } = req.query; // Tambah parameter image
+    const { message, model, image } = req.query;
 
     if (!message) {
         return res.status(400).json({ error: 'Pesan wajib diisi' });
@@ -17,7 +17,7 @@ app.get('/api/chat', async (req, res) => {
 
     // Default model
     const selectedModel = model || 'gpt5';
-    const imageUrl = image || ''; // Default kosong jika tidak ada gambar
+    const imageUrl = image || '';
 
     try {
         let resultText = '';
@@ -28,7 +28,6 @@ app.get('/api/chat', async (req, res) => {
             const targetUrl = `https://theresapis.vercel.app/ai/copilot?message=${encodeURIComponent(message)}&model=gpt-5`;
             const response = await axios.get(targetUrl);
             if (!response.data || !response.data.status) throw new Error('Copilot Error');
-            
             resultText = response.data.result.text;
             citations = response.data.result.citations || [];
 
@@ -44,26 +43,23 @@ app.get('/api/chat', async (req, res) => {
             const response = await axios.get(targetUrl);
             resultText = response.data.result || 'Tidak ada respons.';
 
-        } else if (selectedModel === 'deepseek-think') {
-            // --- 4. DEEPSEEK THINK (Reasoning) ---
-            const targetUrl = `https://api.ootaizumi.web.id/ai/deepseek-think?messages=${encodeURIComponent(message)}`;
+        } else if (selectedModel === 'gptnano') {
+            // --- 4. GPT NANO (TETAP ADA) ---
+            const targetUrl = `https://api.ootaizumi.web.id/ai/gptnano?prompt=${encodeURIComponent(message)}&imageUrl=${encodeURIComponent(imageUrl)}`;
             const response = await axios.get(targetUrl);
-            resultText = response.data.result || response.data.data || JSON.stringify(response.data);
+            resultText = response.data.result || response.data.data || "Tidak ada hasil.";
 
         } else if (selectedModel === 'veo3') {
-            // --- 5. VEO3 (AI VIDEO) ---
-            // Menggunakan prompt dan imageUrl
+            // --- 5. VEO3 (AI VIDEO) - MENGGANTIKAN DEEPSEEK THINK ---
             const targetUrl = `https://api.ootaizumi.web.id/ai-video/veo3?prompt=${encodeURIComponent(message)}&imageUrl=${encodeURIComponent(imageUrl)}`;
             const response = await axios.get(targetUrl);
             
-            // Biasa return url video atau status
+            // Handle response veo3
             const data = response.data;
-            if (typeof data === 'string') {
-                resultText = data;
-            } else if (data.url || data.result) {
-                resultText = `Video berhasil dibuat: \n${data.url || data.result}`;
+            if (data.url || (typeof data === 'string' && data.startsWith('http'))) {
+                resultText = data.url || data; // Ambil URL video
             } else {
-                resultText = JSON.stringify(data);
+                resultText = JSON.stringify(data); // Jika error/format lain
             }
         }
 
@@ -78,10 +74,10 @@ app.get('/api/chat', async (req, res) => {
 
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: `Gagal memproses di mesin ${selectedModel}. Server sedang sibuk.` });
+        res.status(500).json({ error: `Gagal memproses di mesin ${selectedModel}.` });
     }
 });
 
-app.get('/', (req, res) => res.send("Server Kebis AI (Multi-Engine + Veo3) Aktif!"));
+app.get('/', (req, res) => res.send("Server Kebis AI (Veo3 Update) Aktif!"));
 
 module.exports = app;
