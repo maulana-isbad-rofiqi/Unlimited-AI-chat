@@ -51,7 +51,7 @@ app.get('/api/chat', async (req, res) => {
 
         } else if (selectedModel === 'muslimai') {
             // --- 5. MUSLIM AI (BARU) ---
-            const targetUrl = `https://api.ootaizumi.web.id/ai/muslim-ai-2?text=${encodeURIComponent(message)}`;
+            const targetUrl = `https://api.ootaizumi.web.id/ai/muslim-ai-3?text=${encodeURIComponent(message)}`;
             const response = await axios.get(targetUrl);
             // Menyesuaikan dengan response API Muslim AI (biasanya result/data/answer)
             resultText = response.data.result || response.data.data || JSON.stringify(response.data);
