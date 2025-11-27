@@ -72,6 +72,14 @@
         
         .pulse-ring { animation: pulse 2s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+        
+        /* Audio Wave Animation */
+        .audio-wave { display: inline-flex; align-items: center; gap: 2px; height: 12px; }
+        .audio-bar { width: 2px; background: #6366f1; animation: audioWave 0.8s infinite ease-in-out; }
+        .audio-bar:nth-child(1) { height: 60%; animation-delay: 0s; }
+        .audio-bar:nth-child(2) { height: 100%; animation-delay: 0.1s; }
+        .audio-bar:nth-child(3) { height: 50%; animation-delay: 0.2s; }
+        @keyframes audioWave { 0%, 100% { height: 40%; } 50% { height: 100%; } }
     </style>
 
     <script>
@@ -105,7 +113,6 @@
         const kebisEngine = async (question, modelId) => {
             try {
                 if (!question) throw new Error('Input kosong.');
-                // Hanya kirim pesan dan modelId (tidak ada image)
                 const { data } = await axios.get(`/api/chat?message=${encodeURIComponent(question)}&model=${modelId}`);
                 
                 if (!data || !data.result) throw new Error("Gagal terhubung ke Mesin.");
@@ -123,6 +130,34 @@
                 return finalText;
             } catch (error) { 
                 throw new Error(error.response?.data?.error || "Mesin sedang sibuk, coba lagi."); 
+            }
+        };
+
+        // --- UTILS: TEXT TO SPEECH ---
+        const speakText = (text, isSpeaking, setIsSpeaking) => {
+            if ('speechSynthesis' in window) {
+                // Stop jika sedang bicara
+                window.speechSynthesis.cancel();
+                if (isSpeaking) {
+                    setIsSpeaking(false);
+                    return;
+                }
+
+                // Bersihkan teks dari karakter aneh/markdown agar suara bersih
+                const cleanText = text.replace(/[*#`_]/g, '').replace(/\[.*?\]/g, '').replace(/https?:\/\/\S+/g, 'link');
+                
+                const utterance = new SpeechSynthesisUtterance(cleanText);
+                utterance.lang = 'id-ID'; // Bahasa Indonesia
+                utterance.rate = 1.0; // Kecepatan normal
+                utterance.pitch = 1.0;
+
+                utterance.onstart = () => setIsSpeaking(true);
+                utterance.onend = () => setIsSpeaking(false);
+                utterance.onerror = () => setIsSpeaking(false);
+
+                window.speechSynthesis.speak(utterance);
+            } else {
+                alert("Browser Anda tidak mendukung suara.");
             }
         };
 
@@ -210,7 +245,6 @@
 
         const ModelSelector = ({ isOpen, onClose, current, onSelect }) => {
             if (!isOpen) return null;
-            // DAFTAR 5 MESIN (VEO3 DIGANTI MUSLIM AI)
             const models = [
                 { id: 'gpt5', name: 'Copilot AI', icon: 'fa-microchip', desc: 'Penalaran Tinggi & Referensi', color: 'text-brand' },
                 { id: 'muslimai', name: 'Muslim AI', icon: 'fa-moon', desc: 'Asisten Islami & Tanya Jawab', color: 'text-green-500' },
@@ -236,7 +270,7 @@
             );
         };
 
-        const Header = ({ onOpenSidebar, model, setModelOpen, isLoggedIn, count, onLogin }) => (
+        const Header = ({ onOpenSidebar, model, setModelOpen, isLoggedIn, count, onLogin, autoRead, setAutoRead }) => (
             <div className="fixed top-0 left-0 right-0 h-16 glass-nav z-40 flex items-center justify-between px-5 transition-all">
                 <div className="flex items-center gap-4">
                     <button onClick={onOpenSidebar} className="w-10 h-10 rounded-full hover:bg-white/5 flex items-center justify-center text-gray-300 hover:text-white transition-colors"><i className="fas fa-bars text-lg"></i></button>
@@ -246,11 +280,15 @@
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
+                    {/* TOMBOL TOGGLE SUARA GLOBAL */}
+                    <button onClick={() => setAutoRead(!autoRead)} className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all ${autoRead ? 'bg-green-500/10 border-green-500 text-green-400' : 'bg-white/5 border-white/10 text-gray-400'}`} title={autoRead ? "Suara Otomatis: ON" : "Suara Otomatis: OFF"}>
+                        <i className={`fas ${autoRead ? 'fa-volume-high' : 'fa-volume-xmark'} text-xs`}></i>
+                    </button>
+
                     <button onClick={() => setModelOpen(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
                         <i className={`fas ${model.icon} text-[10px] ${model.color}`}></i>
                         <span className="text-xs text-gray-300 font-bold uppercase">UBAH</span>
                     </button>
-                    <button onClick={onLogin} className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all ${isLoggedIn ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-white/5 border-white/10 text-gray-400'}`}><i className={`fas ${isLoggedIn ? 'fa-check' : 'fa-lock'} text-xs`}></i></button>
                 </div>
             </div>
         );
@@ -292,6 +330,36 @@
             </div>
         );
 
+        // --- SUB-COMPONENT: BUBBLE CHAT DENGAN SPEAKER ---
+        const ChatBubble = ({ message, renderContent }) => {
+            const [isSpeaking, setIsSpeaking] = useState(false);
+
+            return (
+                <div className={`flex w-full fade-up ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`flex max-w-[88%] gap-3 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                        {message.role !== 'user' && (
+                            <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 mt-1">
+                                <i className={`fas ${message.isError ? 'fa-exclamation' : 'fa-microchip'} text-gray-400 text-xs`}></i>
+                            </div>
+                        )}
+                        <div className={`px-5 py-4 rounded-2xl shadow-lg relative group ${message.role === 'user' ? 'bg-brand text-white rounded-tr-sm' : message.isError ? 'bg-red-900/20 border border-red-500/30' : 'glass-panel text-gray-200 rounded-tl-sm'}`}>
+                            {renderContent(message.content)}
+                            
+                            {/* TOMBOL SUARA DI CHAT BUBBLE */}
+                            {message.role !== 'user' && !message.isError && (
+                                <button 
+                                    onClick={() => speakText(message.content, isSpeaking, setIsSpeaking)} 
+                                    className={`absolute -bottom-6 left-0 w-6 h-6 rounded-full flex items-center justify-center transition-all ${isSpeaking ? 'bg-green-500 text-white animate-pulse' : 'text-gray-500 hover:text-white hover:bg-white/10'}`}
+                                >
+                                    {isSpeaking ? <div className="audio-wave"><div className="audio-bar"></div><div className="audio-bar"></div><div className="audio-bar"></div></div> : <i className="fas fa-volume-high text-[10px]"></i>}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         const App = () => {
             const [input, setInput] = useState('');
             const [messages, setMessages] = useState([]);
@@ -309,6 +377,9 @@
             const [isRecording, setIsRecording] = useState(false);
             const [deferredPrompt, setDeferredPrompt] = useState(null);
             
+            // STATE BARU: AUTO READ
+            const [autoRead, setAutoRead] = useState(false);
+
             const messagesEndRef = useRef(null);
             const textareaRef = useRef(null);
 
@@ -316,16 +387,43 @@
                 setIsLoggedIn(localStorage.getItem('kebis_login') === 'true');
                 setChatCount(parseInt(localStorage.getItem('kebis_count') || '0'));
                 setChatHistory(JSON.parse(localStorage.getItem('kebis_history') || '[]'));
+                // Cek settingan suara dari local storage (opsional)
+                const savedAutoRead = localStorage.getItem('kebis_autoread');
+                if(savedAutoRead) setAutoRead(savedAutoRead === 'true');
+
                 const handleBeforeInstallPrompt = (e) => { e.preventDefault(); setDeferredPrompt(e); };
                 window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
                 return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
             }, []);
 
+            // Simpan status Auto Read
+            useEffect(() => {
+                localStorage.setItem('kebis_autoread', autoRead);
+            }, [autoRead]);
+
             useEffect(() => {
                 if (messages.length > 0) {
                     localStorage.setItem(`kebis_msg_${sessionId}`, JSON.stringify(messages));
+                    
+                    // --- LOGIKA AUTO READ ---
+                    const lastMsg = messages[messages.length - 1];
+                    // Jika pesan terakhir dari asisten, dan fitur Auto Read ON, dan bukan baru load session
+                    if (autoRead && lastMsg.role === 'assistant' && !lastMsg.isRead) {
+                        // Tandai sudah dibaca agar tidak berulang saat re-render
+                        lastMsg.isRead = true; 
+                        // Kita pakai trik timeout kecil agar UI render dulu
+                        setTimeout(() => {
+                            const synth = window.speechSynthesis;
+                            if(synth) {
+                                synth.cancel(); // Stop yg lama
+                                const u = new SpeechSynthesisUtterance(lastMsg.content.replace(/[*#`]/g, ''));
+                                u.lang = 'id-ID';
+                                synth.speak(u);
+                            }
+                        }, 500);
+                    }
                 }
-            }, [messages, sessionId]);
+            }, [messages, sessionId, autoRead]);
 
             useEffect(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), [messages, loading]);
             useEffect(() => { if(textareaRef.current) { textareaRef.current.style.height = 'auto'; textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 120) + 'px'; } }, [input]);
@@ -361,24 +459,30 @@
                 if (!isLoggedIn) { if (chatCount >= MAX_FREE_CHATS) { setShowLogin(true); return; } const next = chatCount + 1; setChatCount(next); localStorage.setItem('kebis_count', next); }
                 setInput('');
                 
+                // Stop suara saat kirim pesan baru
+                window.speechSynthesis.cancel();
+
                 setMessages(p => [...p, { role: 'user', content: q }]);
                 setLoading(true);
                 if (messages.length === 0) updateHistory(q);
                 try {
                     const res = await kebisEngine(q, currentModel.id);
-                    setMessages(p => [...p, { role: 'assistant', content: res }]);
+                    setMessages(p => [...p, { role: 'assistant', content: res, isRead: false }]);
                 } catch (e) {
-                    setMessages(p => [...p, { role: 'assistant', content: `Error Mesin: ${e.message}`, isError: true }]);
+                    setMessages(p => [...p, { role: 'assistant', content: `Error Mesin: ${e.message}`, isError: true, isRead: true }]);
                 } finally { setLoading(false); }
             };
 
             const handleSelectSession = (id) => {
+                window.speechSynthesis.cancel(); // Stop suara saat ganti sesi
                 setSessionId(id);
                 const savedMessages = localStorage.getItem(`kebis_msg_${id}`);
                 if (savedMessages) {
-                    setMessages(JSON.parse(savedMessages));
+                    // Tandai semua pesan lama sebagai sudah dibaca agar tidak auto-speak saat load
+                    const parsed = JSON.parse(savedMessages).map(m => ({...m, isRead: true}));
+                    setMessages(parsed);
                 } else {
-                    setMessages([{ role: 'assistant', content: '⚠️ Riwayat ini kosong (Data belum tersimpan).' }]);
+                    setMessages([{ role: 'assistant', content: '⚠️ Riwayat ini kosong (Data belum tersimpan).', isRead: true }]);
                 }
                 setSidebarOpen(false);
             };
@@ -395,6 +499,7 @@
             };
 
             const handleNewChat = () => {
+                window.speechSynthesis.cancel(); // Stop suara
                 setMessages([]);
                 setSessionId(crypto.randomUUID());
                 setSidebarOpen(false);
@@ -407,7 +512,17 @@
 
             return (
                 <div className="flex flex-col h-full w-full relative">
-                    <Header onOpenSidebar={() => setSidebarOpen(true)} model={currentModel} setModelOpen={setShowModelMenu} isLoggedIn={isLoggedIn} count={chatCount} onLogin={() => isLoggedIn ? (confirm("Logout?") && (localStorage.removeItem('kebis_login'), setIsLoggedIn(false))) : setShowLogin(true)} />
+                    {/* Header sekarang menerima props autoRead */}
+                    <Header 
+                        onOpenSidebar={() => setSidebarOpen(true)} 
+                        model={currentModel} 
+                        setModelOpen={setShowModelMenu} 
+                        isLoggedIn={isLoggedIn} 
+                        count={chatCount} 
+                        onLogin={() => isLoggedIn ? (confirm("Logout?") && (localStorage.removeItem('kebis_login'), setIsLoggedIn(false))) : setShowLogin(true)}
+                        autoRead={autoRead}
+                        setAutoRead={setAutoRead}
+                    />
                     
                     <Sidebar 
                         isOpen={sidebarOpen} 
@@ -430,12 +545,8 @@
                             ) : (
                                 <div className="flex flex-col gap-6 pt-6">
                                     {messages.map((m, i) => (
-                                        <div key={i} className={`flex w-full fade-up ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                            <div className={`flex max-w-[88%] gap-3 ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                                                {m.role !== 'user' && <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 mt-1"><i className={`fas ${m.isError ? 'fa-exclamation' : 'fa-microchip'} text-gray-400 text-xs`}></i></div>}
-                                                <div className={`px-5 py-4 rounded-2xl shadow-lg ${m.role === 'user' ? 'bg-brand text-white rounded-tr-sm' : m.isError ? 'bg-red-900/20 border border-red-500/30' : 'glass-panel text-gray-200 rounded-tl-sm'}`}>{renderContent(m.content)}</div>
-                                            </div>
-                                        </div>
+                                        // Menggunakan Component ChatBubble yang baru
+                                        <ChatBubble key={i} message={m} renderContent={renderContent} />
                                     ))}
                                     {loading && <div className="flex gap-3 fade-up"><div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center"><i className="fas fa-microchip text-gray-400 text-xs"></i></div><div className="glass-panel px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-1.5"><div className="w-1.5 h-1.5 bg-gray-400 rounded-full typing-dot"></div><div className="w-1.5 h-1.5 bg-gray-400 rounded-full typing-dot"></div><div className="w-1.5 h-1.5 bg-gray-400 rounded-full typing-dot"></div></div></div>}
                                     <div ref={messagesEndRef} />
@@ -447,7 +558,6 @@
                     <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent p-4 pb-6 z-40">
                         <div className="max-w-2xl mx-auto relative">
                             <div className="flex items-end gap-2 glass-panel rounded-[26px] p-2 shadow-2xl border border-white/10 transition-colors focus-within:border-brand/50">
-                                
                                 <button onClick={() => setUseSearch(!useSearch)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all mb-0.5 ${useSearch ? 'bg-blue-500/20 text-blue-400' : 'text-gray-500 hover:text-white hover:bg-white/5'}`} title="Cari Internet"><i className="fas fa-globe text-sm"></i></button>
                                 
                                 <button onClick={startVoiceInput} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all mb-0.5 ${isRecording ? 'bg-red-500 text-white pulse-ring' : 'text-gray-500 hover:text-white hover:bg-white/5'}`} title="Rekam Suara"><i className={`fas ${isRecording ? 'fa-stop' : 'fa-microphone'} text-sm`}></i></button>
