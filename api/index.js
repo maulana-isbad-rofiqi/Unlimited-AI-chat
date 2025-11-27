@@ -9,7 +9,7 @@ app.use(express.json());
 
 // Endpoint Utama (GET)
 app.get('/api/chat', async (req, res) => {
-    const { message, model, image } = req.query;
+    const { message, model } = req.query;
 
     if (!message) {
         return res.status(400).json({ error: 'Pesan wajib diisi' });
@@ -17,7 +17,6 @@ app.get('/api/chat', async (req, res) => {
 
     // Default model
     const selectedModel = model || 'gpt5';
-    const imageUrl = image || '';
 
     try {
         let resultText = '';
@@ -28,6 +27,7 @@ app.get('/api/chat', async (req, res) => {
             const targetUrl = `https://theresapis.vercel.app/ai/copilot?message=${encodeURIComponent(message)}&model=gpt-5`;
             const response = await axios.get(targetUrl);
             if (!response.data || !response.data.status) throw new Error('Copilot Error');
+            
             resultText = response.data.result.text;
             citations = response.data.result.citations || [];
 
@@ -44,23 +44,17 @@ app.get('/api/chat', async (req, res) => {
             resultText = response.data.result || 'Tidak ada respons.';
 
         } else if (selectedModel === 'gptnano') {
-            // --- 4. GPT NANO (TETAP ADA) ---
-            const targetUrl = `https://api.ootaizumi.web.id/ai/gptnano?prompt=${encodeURIComponent(message)}&imageUrl=${encodeURIComponent(imageUrl)}`;
+            // --- 4. GPT NANO ---
+            const targetUrl = `https://api.ootaizumi.web.id/ai/gptnano?prompt=${encodeURIComponent(message)}&imageUrl=`;
             const response = await axios.get(targetUrl);
             resultText = response.data.result || response.data.data || "Tidak ada hasil.";
 
-        } else if (selectedModel === 'veo3') {
-            // --- 5. VEO3 (AI VIDEO) - MENGGANTIKAN DEEPSEEK THINK ---
-            const targetUrl = `https://api.ootaizumi.web.id/ai-video/veo3?prompt=${encodeURIComponent(message)}&imageUrl=${encodeURIComponent(imageUrl)}`;
+        } else if (selectedModel === 'muslimai') {
+            // --- 5. MUSLIM AI (BARU) ---
+            const targetUrl = `https://api.ootaizumi.web.id/ai/muslim-ai?text=${encodeURIComponent(message)}`;
             const response = await axios.get(targetUrl);
-            
-            // Handle response veo3
-            const data = response.data;
-            if (data.url || (typeof data === 'string' && data.startsWith('http'))) {
-                resultText = data.url || data; // Ambil URL video
-            } else {
-                resultText = JSON.stringify(data); // Jika error/format lain
-            }
+            // Menyesuaikan dengan response API Muslim AI (biasanya result/data/answer)
+            resultText = response.data.result || response.data.data || JSON.stringify(response.data);
         }
 
         // Kirim balik ke frontend
@@ -78,6 +72,6 @@ app.get('/api/chat', async (req, res) => {
     }
 });
 
-app.get('/', (req, res) => res.send("Server Kebis AI (Veo3 Update) Aktif!"));
+app.get('/', (req, res) => res.send("Server Kebis AI (Muslim AI Update) Aktif!"));
 
 module.exports = app;
