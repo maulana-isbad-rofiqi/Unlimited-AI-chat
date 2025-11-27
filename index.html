@@ -111,7 +111,7 @@
                 
                 let finalText = data.result.text || "Tidak ada jawaban.";
                 
-                // Format khusus untuk Veo3 Video URL
+                // Format khusus untuk Video URL (Veo3)
                 if ((finalText.includes('http') && modelId === 'veo3')) {
                     finalText = `🎥 <b>Video Anda Siap:</b><br><a href="${finalText}" target="_blank" class="text-brand underline break-all">${finalText}</a><br><br><video controls src="${finalText}" class="w-full rounded-lg mt-2 border border-white/10"></video>`;
                 }
@@ -214,12 +214,13 @@
 
         const ModelSelector = ({ isOpen, onClose, current, onSelect }) => {
             if (!isOpen) return null;
+            // DAFTAR MESIN FINAL SESUAI REQUEST
             const models = [
                 { id: 'gpt5', name: 'Copilot AI', icon: 'fa-microchip', desc: 'Penalaran Tinggi & Referensi', color: 'text-brand' },
-                { id: 'deepseek-think', name: 'DeepSeek Think', icon: 'fa-brain', desc: 'Reasoning Mode (Berpikir)', color: 'text-cyan-400' },
-                { id: 'veo3', name: 'Veo3 (Video)', icon: 'fa-video', desc: 'Buat Video dari Teks/Gbr', color: 'text-red-500' },
-                { id: 'chatbot', name: 'DeepSeek (Std)', icon: 'fa-robot', desc: 'AI Percakapan Standar', color: 'text-green-400' },
-                { id: 'claila', name: 'Claila', icon: 'fa-star', desc: 'Asisten Pintar Alternatif', color: 'text-purple-400' }
+                { id: 'chatbot', name: 'DeepSeek', icon: 'fa-robot', desc: 'AI Percakapan Standar', color: 'text-green-400' },
+                { id: 'claila', name: 'Claila', icon: 'fa-star', desc: 'Asisten Pintar Alternatif', color: 'text-purple-400' },
+                { id: 'gptnano', name: 'GPT Nano', icon: 'fa-bolt', desc: 'Cepat & Ringan', color: 'text-yellow-400' },
+                { id: 'veo3', name: 'Veo3 (Video)', icon: 'fa-video', desc: 'Buat Video dari Teks/Gbr', color: 'text-red-500' }
             ];
             return (
                 <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 fade-up" onClick={onClose}>
@@ -283,7 +284,7 @@
                 <div className="grid grid-cols-1 gap-3 w-full max-w-sm">
                     {[
                         { icon: 'fa-code', text: 'Buat Kode Python', prompt: 'Buatkan kode Python untuk kalkulator GUI sederhana', color: 'text-blue-400' },
-                        { icon: 'fa-lightbulb', text: 'Ide Bisnis Modern', prompt: 'Berikan 3 ide bisnis SaaS berbasis AI yang unik', color: 'text-yellow-400' },
+                        { icon: 'fa-video', text: 'Buat Video AI', prompt: 'Buatkan video pemandangan pantai yang realistis', color: 'text-red-500' },
                         { icon: 'fa-atom', text: 'Jelaskan Fisika', prompt: 'Jelaskan teori relativitas dengan bahasa sederhana', color: 'text-purple-400' },
                     ].map((s, i) => (
                         <button key={i} onClick={() => onSuggestion(s.prompt)} className="flex items-center gap-4 p-4 glass-panel rounded-2xl hover:bg-white/10 transition-all text-left group border border-white/5 hover:border-brand/30">
@@ -297,10 +298,11 @@
 
         const App = () => {
             const [input, setInput] = useState('');
-            const [imageUrl, setImageUrl] = useState('');
-            const [uploading, setUploading] = useState(false); // Indikator Upload
+            const [uploadFile, setUploadFile] = useState(null); // File mentah untuk diupload
+            const [previewUrl, setPreviewUrl] = useState(null); // URL untuk preview di layar (lokal)
             const [messages, setMessages] = useState([]);
             const [loading, setLoading] = useState(false);
+            const [isUploading, setIsUploading] = useState(false);
             const [isLoggedIn, setIsLoggedIn] = useState(false);
             const [showLogin, setShowLogin] = useState(false);
             const [chatCount, setChatCount] = useState(0);
@@ -316,7 +318,7 @@
             
             const messagesEndRef = useRef(null);
             const textareaRef = useRef(null);
-            const fileInputRef = useRef(null); // Ref untuk input file
+            const fileInputRef = useRef(null);
 
             useEffect(() => {
                 setIsLoggedIn(localStorage.getItem('kebis_login') === 'true');
@@ -361,61 +363,81 @@
                 recognition.start();
             };
 
-            // FUNGSI UPLOAD KE CATBOX.MOE
-            const handleFileSelect = async (e) => {
+            // 1. PILIH FILE & TAMPILKAN PREVIEW
+            const handleFileSelect = (e) => {
                 const file = e.target.files[0];
-                if (!file) return;
+                if (file) {
+                    setUploadFile(file);
+                    setPreviewUrl(URL.createObjectURL(file)); // Preview lokal agar cepat
+                }
+                e.target.value = null;
+            };
 
-                setUploading(true);
+            // 2. PROSES UPLOAD KE CATBOX (VIA PROXY) SAAT KLIK KIRIM
+            const uploadToCatbox = async (file) => {
                 const formData = new FormData();
                 formData.append("reqtype", "fileupload");
                 formData.append("fileToUpload", file);
+                
+                // Gunakan Proxy CORS agar tidak diblokir browser
+                const proxyUrl = "https://corsproxy.io/?"; 
+                const targetUrl = "https://catbox.moe/user/api.php";
 
-                try {
-                    // Upload ke Catbox (Gratis & Cepat)
-                    const res = await axios.post("https://catbox.moe/user/api.php", formData);
-                    const url = res.data;
-                    
-                    if (url && url.startsWith("http")) {
-                        setImageUrl(url);
-                        alert("✅ Gambar berhasil diupload!");
-                    } else {
-                        throw new Error("Gagal mendapatkan link.");
-                    }
-                } catch (err) {
-                    console.error(err);
-                    alert("❌ Gagal upload gambar. Coba lagi atau gunakan link manual.");
-                } finally {
-                    setUploading(false);
-                    // Reset input file agar bisa pilih file yang sama
-                    e.target.value = null; 
-                }
+                const res = await axios.post(proxyUrl + encodeURIComponent(targetUrl), formData);
+                return res.data; // Mengembalikan URL gambar
             };
 
             const handleSend = async (textOverride) => {
                 const q = textOverride || input;
-                if (!q.trim() || loading || uploading) return;
-                if (!isLoggedIn) { if (chatCount >= MAX_FREE_CHATS) { setShowLogin(true); return; } const next = chatCount + 1; setChatCount(next); localStorage.setItem('kebis_count', next); }
-                setInput('');
-                const currentImg = imageUrl;
-                setImageUrl(''); 
-                
-                // Tampilan Pesan User
-                let displayContent = q;
-                if (currentImg) {
-                    displayContent += `<br><img src="${currentImg}" style="max-height: 200px; border-radius: 8px; margin-top: 5px; border: 1px solid white;">`;
-                }
+                if (!q.trim() && !uploadFile) return; // Cegah kirim kosong
+                if (loading || isUploading) return;
 
+                if (!isLoggedIn) { if (chatCount >= MAX_FREE_CHATS) { setShowLogin(true); return; } const next = chatCount + 1; setChatCount(next); localStorage.setItem('kebis_count', next); }
+                
+                setInput('');
+                const fileToSend = uploadFile;
+                const localPreview = previewUrl;
+                
+                // Reset State Upload
+                setUploadFile(null);
+                setPreviewUrl(null);
+
+                // Tampilan Pesan User (Langsung Muncul)
+                let displayContent = q;
+                if (localPreview) {
+                    displayContent += `<br><img src="${localPreview}" style="max-height: 200px; border-radius: 8px; margin-top: 5px; border: 1px solid white;">`;
+                }
                 setMessages(p => [...p, { role: 'user', content: displayContent }]);
                 
                 setLoading(true);
-                if (messages.length === 0) updateHistory(q);
+                if (messages.length === 0) updateHistory(q || "Gambar Dikirim");
+
                 try {
-                    // KIRIM KE BACKEND
-                    const res = await kebisEngine(q, currentModel.id, currentImg);
+                    let finalImageUrl = '';
+                    
+                    // JIKA ADA FILE, UPLOAD DULU
+                    if (fileToSend) {
+                        setIsUploading(true);
+                        // Tambahkan pesan sementara sistem
+                        setMessages(p => [...p, { role: 'system', content: '⏳ Sedang mengupload gambar...', isTemp: true }]);
+                        
+                        try {
+                            finalImageUrl = await uploadToCatbox(fileToSend);
+                        } catch (err) {
+                            throw new Error("Gagal upload gambar. Cek koneksi.");
+                        } finally {
+                            setIsUploading(false);
+                            // Hapus pesan "Sedang upload"
+                            setMessages(p => p.filter(m => !m.isTemp));
+                        }
+                    }
+
+                    // KIRIM KE BACKEND (TEXT + URL GAMBAR)
+                    const res = await kebisEngine(q, currentModel.id, finalImageUrl);
                     setMessages(p => [...p, { role: 'assistant', content: res }]);
+
                 } catch (e) {
-                    setMessages(p => [...p, { role: 'assistant', content: `Error Mesin: ${e.message}`, isError: true }]);
+                    setMessages(p => [...p, { role: 'assistant', content: `Error: ${e.message}`, isError: true }]);
                 } finally { setLoading(false); }
             };
 
@@ -448,13 +470,7 @@
             };
 
             const renderContent = (text) => {
-                // Regex sederhana untuk replace markdown image/link kalau perlu
-                // Tapi di sini kita pakai dangerouslySetInnerHTML jadi HTML dari handleSend akan dirender
-                let html = text
-                    .replace(/\*\*(.*?)\*\*/g, '<b class="text-white font-bold">$1</b>')
-                    .replace(/`([^`]+)`/g, '<code class="bg-white/10 px-1.5 py-0.5 rounded text-brandGlow border border-white/5 font-mono text-sm">$1</code>')
-                    .replace(/\n/g, '<br>');
-                
+                let html = text.replace(/\*\*(.*?)\*\*/g, '<b class="text-white font-bold">$1</b>').replace(/`([^`]+)`/g, '<code class="bg-white/10 px-1.5 py-0.5 rounded text-brandGlow border border-white/5 font-mono text-sm">$1</code>').replace(/\n/g, '<br>');
                 return <div className="prose text-[15px] text-gray-300 leading-relaxed break-words" dangerouslySetInnerHTML={{__html: html}}></div>;
             };
 
@@ -486,7 +502,9 @@
                                         <div key={i} className={`flex w-full fade-up ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                             <div className={`flex max-w-[88%] gap-3 ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                                                 {m.role !== 'user' && <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 mt-1"><i className={`fas ${m.isError ? 'fa-exclamation' : 'fa-microchip'} text-gray-400 text-xs`}></i></div>}
-                                                <div className={`px-5 py-4 rounded-2xl shadow-lg ${m.role === 'user' ? 'bg-brand text-white rounded-tr-sm' : m.isError ? 'bg-red-900/20 border border-red-500/30' : 'glass-panel text-gray-200 rounded-tl-sm'}`}>{renderContent(m.content)}</div>
+                                                <div className={`px-5 py-4 rounded-2xl shadow-lg ${m.role === 'user' ? 'bg-brand text-white rounded-tr-sm' : m.isError ? 'bg-red-900/20 border border-red-500/30' : 'glass-panel text-gray-200 rounded-tl-sm'}`}>
+                                                    {m.isTemp ? <span className="italic text-gray-400">{m.content}</span> : renderContent(m.content)}
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
@@ -499,12 +517,12 @@
 
                     <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent p-4 pb-6 z-40">
                         <div className="max-w-2xl mx-auto relative">
-                            {/* PREVIEW IMAGE SEBELUM KIRIM */}
-                            {imageUrl && (
+                            {/* PREVIEW IMAGE SEBELUM KIRIM (LOKAL) */}
+                            {previewUrl && (
                                 <div className="mb-2 p-2 glass-panel rounded-xl inline-flex items-center gap-3 animate-fade-in">
-                                    <img src={imageUrl} className="h-12 w-12 rounded bg-black/50 object-cover border border-white/10" />
-                                    <span className="text-xs text-green-400 font-mono">Gambar Siap!</span>
-                                    <button onClick={() => setImageUrl('')} className="w-6 h-6 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center hover:bg-red-500 hover:text-white"><i className="fas fa-times text-xs"></i></button>
+                                    <img src={previewUrl} className="h-12 w-12 rounded bg-black/50 object-cover border border-white/10" />
+                                    <span className="text-xs text-blue-400 font-mono">Siap Upload</span>
+                                    <button onClick={() => { setUploadFile(null); setPreviewUrl(null); }} className="w-6 h-6 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center hover:bg-red-500 hover:text-white"><i className="fas fa-times text-xs"></i></button>
                                 </div>
                             )}
 
@@ -512,16 +530,16 @@
                                 {/* INPUT FILE TERSEMBUNYI */}
                                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileSelect} />
                                 
-                                {/* TOMBOL PAPERCLIP (TRIGGER UPLOAD) */}
-                                <button onClick={() => fileInputRef.current.click()} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all mb-0.5 ${uploading ? 'bg-yellow-500/20 text-yellow-400 animate-pulse' : 'text-gray-500 hover:text-white hover:bg-white/5'}`} title="Upload Gambar" disabled={uploading}>
-                                    <i className={`fas ${uploading ? 'fa-spinner fa-spin' : 'fa-paperclip'} text-sm`}></i>
+                                {/* TOMBOL PAPERCLIP (BUKA GALERI) */}
+                                <button onClick={() => fileInputRef.current.click()} className="w-10 h-10 rounded-full flex items-center justify-center transition-all mb-0.5 text-gray-500 hover:text-white hover:bg-white/5" title="Pilih Gambar dari Galeri">
+                                    <i className="fas fa-paperclip text-sm"></i>
                                 </button>
                                 
                                 <button onClick={startVoiceInput} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all mb-0.5 ${isRecording ? 'bg-red-500 text-white pulse-ring' : 'text-gray-500 hover:text-white hover:bg-white/5'}`} title="Rekam Suara"><i className={`fas ${isRecording ? 'fa-stop' : 'fa-microphone'} text-sm`}></i></button>
                                 
-                                <textarea ref={textareaRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder={isRecording ? "Mendengarkan..." : uploading ? "Mengupload..." : "Ketik pesan..."} className="flex-1 bg-transparent text-white placeholder-gray-500 py-2.5 focus:outline-none resize-none max-h-[120px] text-[15px] min-h-[44px]" rows={1} />
+                                <textarea ref={textareaRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder={isRecording ? "Mendengarkan..." : isUploading ? "Mengupload..." : previewUrl ? "Tambahkan perintah..." : "Ketik pesan..."} className="flex-1 bg-transparent text-white placeholder-gray-500 py-2.5 focus:outline-none resize-none max-h-[120px] text-[15px] min-h-[44px]" rows={1} />
                                 
-                                <button onClick={() => handleSend()} disabled={!input.trim() || loading || uploading} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all mb-0.5 ${input.trim() && !loading && !uploading ? 'bg-brand text-white hover:scale-105 shadow-lg shadow-brand/25' : 'bg-white/5 text-gray-600 cursor-not-allowed'}`}>{loading ? <i className="fas fa-circle-notch fa-spin text-xs"></i> : <i className="fas fa-arrow-up text-sm"></i>}</button>
+                                <button onClick={() => handleSend()} disabled={!input.trim() && !uploadFile || loading || isUploading} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all mb-0.5 ${(!input.trim() && !uploadFile) || loading || isUploading ? 'bg-white/5 text-gray-600 cursor-not-allowed' : 'bg-brand text-white hover:scale-105 shadow-lg shadow-brand/25'}`}>{loading || isUploading ? <i className="fas fa-circle-notch fa-spin text-xs"></i> : <i className="fas fa-arrow-up text-sm"></i>}</button>
                             </div>
                         </div>
                     </div>
