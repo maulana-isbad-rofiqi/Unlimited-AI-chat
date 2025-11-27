@@ -105,7 +105,7 @@
         const kebisEngine = async (question, modelId) => {
             try {
                 if (!question) throw new Error('Input kosong.');
-                // Hanya kirim teks dan model, tidak ada gambar
+                // Hanya kirim pesan dan modelId (tidak ada image)
                 const { data } = await axios.get(`/api/chat?message=${encodeURIComponent(question)}&model=${modelId}`);
                 
                 if (!data || !data.result) throw new Error("Gagal terhubung ke Mesin.");
