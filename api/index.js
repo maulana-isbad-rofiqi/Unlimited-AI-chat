@@ -15,7 +15,7 @@ app.get('/api/chat', async (req, res) => {
         return res.status(400).json({ error: 'Pesan wajib diisi' });
     }
 
-    // Default ke gpt5 jika tidak ada model yang dipilih
+    // Default model
     const selectedModel = model || 'gpt5';
 
     try {
@@ -23,32 +23,45 @@ app.get('/api/chat', async (req, res) => {
         let citations = [];
 
         if (selectedModel === 'gpt5') {
-            // --- MESIN 1: GPT-5 ---
+            // --- 1. COPILOT AI (GPT-5) ---
             const targetUrl = `https://theresapis.vercel.app/ai/copilot?message=${encodeURIComponent(message)}&model=gpt-5`;
             const response = await axios.get(targetUrl);
-            if (!response.data || !response.data.status) throw new Error('GPT-5 Error');
+            if (!response.data || !response.data.status) throw new Error('Copilot Error');
             
             resultText = response.data.result.text;
             citations = response.data.result.citations || [];
 
         } else if (selectedModel === 'chatbot') {
-            // --- MESIN 2: CHATBOT (Zelap) ---
+            // --- 2. DEEPSEEK (Standard) ---
             const targetUrl = `https://zelapioffciall.koyeb.app/ai/chatbot?text=${encodeURIComponent(message)}`;
             const response = await axios.get(targetUrl);
-            if (!response.data || !response.data.status) throw new Error('Chatbot Error');
-
             resultText = response.data.answer || 'Tidak ada jawaban.';
 
         } else if (selectedModel === 'claila') {
-            // --- MESIN 3: CLAILA (Zelap) ---
+            // --- 3. CLAILA ---
             const targetUrl = `https://zelapioffciall.koyeb.app/ai/claila?text=${encodeURIComponent(message)}`;
             const response = await axios.get(targetUrl);
-            if (!response.data || !response.data.status) throw new Error('Claila Error');
-
             resultText = response.data.result || 'Tidak ada respons.';
+
+        } else if (selectedModel === 'deepseek-think') {
+            // --- 4. DEEPSEEK THINK (Reasoning) ---
+            // Note: API ini menggunakan parameter 'messages'
+            const targetUrl = `https://api.ootaizumi.web.id/ai/deepseek-think?messages=${encodeURIComponent(message)}`;
+            const response = await axios.get(targetUrl);
+            
+            // Cek struktur response API (biasanya result atau data)
+            resultText = response.data.result || response.data.data || JSON.stringify(response.data);
+
+        } else if (selectedModel === 'gptnano') {
+            // --- 5. GPT NANO ---
+            // Note: API ini menggunakan parameter 'prompt' dan 'imageUrl' (dikosongkan dulu)
+            const targetUrl = `https://api.ootaizumi.web.id/ai/gptnano?prompt=${encodeURIComponent(message)}&imageUrl=`;
+            const response = await axios.get(targetUrl);
+            
+            resultText = response.data.result || response.data.data || JSON.stringify(response.data);
         }
 
-        // Format standar JSON untuk Frontend Kebis AI
+        // Kirim balik ke frontend
         res.status(200).json({
             status: true,
             result: {
@@ -59,10 +72,10 @@ app.get('/api/chat', async (req, res) => {
 
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: `Gagal memproses di mesin ${selectedModel}` });
+        res.status(500).json({ error: `Gagal memproses di mesin ${selectedModel}. Server sedang sibuk.` });
     }
 });
 
-app.get('/', (req, res) => res.send("Server Kebis AI (Multi-Engine) Aktif!"));
+app.get('/', (req, res) => res.send("Server Kebis AI (5 Engines) Aktif!"));
 
 module.exports = app;
